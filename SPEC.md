@@ -24,7 +24,7 @@
 | --- | --- | --- |
 | イベント作成ページへの導線(アカウントメニュー) | 非表示 | 表示 |
 | イベント作成ページの実行 | 不可 | 可 |
-| イベント状態(open/close/hide)の変更 | 不可 | 可 |
+| イベント状態(open/close)の変更 | 不可 | 可 |
 | イベントページ閲覧 | 可 | 可 |
 | 自分のユーザー情報(ニックネーム/本名)登録・更新 | 可 | 可 |
 | 試合結果の新規登録 | 可 | 可 |
@@ -39,6 +39,8 @@
 - 本名は非公開情報として扱い、本人と管理者のみ参照・更新できる
 - 画面上のアカウントメニューには、管理者ログイン時のみ「イベント作成」を表示する
 - イベント作成は独立ページ(`/events/create`)で実行する
+- テスト用途のイベントは `Event.isTest = true` で管理する
+- `Event.isTest` と `Event.eventDate` は作成後に変更しない運用とする
 
 ### API認可ルール
 
@@ -50,6 +52,8 @@
   - `NicknameRegistry`: 作成・読み取り・更新・削除は本人または管理者のみ
   - `PrivateProfile`: 作成は認証済みユーザー、読み取り・更新は本人または管理者のみ
   - `MatchResult`: 読み取り・作成は認証済みユーザー、更新は作成者本人または管理者のみ
+  - `FiscalYearLeaderboard`: 読み取りは認証済みユーザー、更新は集計Lambdaまたは管理者のみ
+  - `EventUserContribution`: 読み取り・更新は集計Lambdaまたは管理者のみ
 - field-level の認可は原則として持たず、モデル単位で操作権限を管理する
 - 一般ユーザーが更新可能なプロフィール項目は、`PublicProfile.nickname` と `PrivateProfile.realName` のみとする
 
@@ -89,7 +93,9 @@
   - イベントは状態(`status`)を持つ
     - `open`: 一覧表示され、試合結果の新規登録が可能
     - `close`: 一覧表示されるが、試合結果の新規登録は不可
-    - `hide`: イベント一覧に表示しない
+  - イベントはテスト用途フラグ(`isTest`)を持つ
+    - `false`: 通常イベント(集計対象)
+    - `true`: テストイベント(ランキング集計対象外)
   - イベント状態の変更は管理者のみ実行可能とする
   - イベントごとに一意のURLが生成され、公開用URL識別子には `eventId` を使用する
 - イベントページの目的は以下の2つとする
@@ -165,11 +171,54 @@
   - All time は同ロジックで拡張可能な前提とする
 - トップページには、当日基準で該当する年度(4月開始、翌年3月終了)の年間集計を表示する
   - 表示する年間集計は `scope = FISCAL_YEAR` とし、年度開始年を指定して取得する
-  - `status = hide` のイベントに紐づく試合結果は年間集計の対象外とする
+  - `isTest = true` のイベントに紐づく試合結果は年間集計の対象外とする
   - 年度の判定ルール
     - 当月が 4-12 月の場合は当年を年度開始年とする
     - 当月が 1-3 月の場合は前年を年度開始年とする
-- All time 集計でも、`status = hide` のイベントに紐づく試合結果は対象外とする
+- All time 集計でも、`isTest = true` のイベントに紐づく試合結果は対象外とする
+- 年度ランキングは、マテリアライズドビュー方式で提供する
+  - `MatchResult` の DynamoDB Streams をトリガーに Lambda を起動し、集計結果テーブルを更新する
+  - ランキング表示は集計済みテーブル(`FiscalYearLeaderboard`)を参照し、都度全件再集計は行わない
+  - 集計対象判定は `Event.isTest` に基づく
+
+#### 年度ランキングMV更新仕様
+
+- 内部テーブル(`EventUserContribution`)の利用目的
+  - 年度ランキングMV(`FiscalYearLeaderboard`)を差分更新するための中間集計を保持する
+  - イベント単位でユーザー寄与を保持し、`MatchResult.MODIFY` 時に old/new の差分計算を単純化する
+  - 表示用の最終集計(`FiscalYearLeaderboard`)と更新計算用データ(`EventUserContribution`)を分離し、更新処理を安定化する
+  - `EventUserContribution` は内部用途を主目的とし、基本的に年度MV更新のために利用する
+- 更新トリガー
+  - `MatchResult` の INSERT / MODIFY / REMOVE
+- 集計ルール
+  - 勝者: `totalPoint += point`, `totalPlayedPoint += point`
+  - 敗者: `totalPoint -= point`, `totalPlayedPoint += point`
+  - `isTest = true` のイベントは集計に反映しない
+- 変更時差分
+  - `MatchResult.MODIFY`: old を減算してから new を加算
+
+#### 年度ランキングMV データ更新フロー
+
+1. `MatchResult.INSERT`
+  - `eventId` から `Event` を参照し、`isTest = true` の場合は処理を終了する
+  - `matchDate` から年度開始年(`fiscalYear`)を計算する
+  - `EventUserContribution` を2ユーザー分更新する
+    - 勝者: `pointDelta += point`, `playedPointDelta += point`
+    - 敗者: `pointDelta -= point`, `playedPointDelta += point`
+  - `FiscalYearLeaderboard` を同じ差分で更新する
+
+2. `MatchResult.REMOVE`
+  - `OldImage` を入力として INSERT の逆演算を行う
+  - `EventUserContribution` と `FiscalYearLeaderboard` の双方で差分を打ち消す
+
+3. `MatchResult.MODIFY`
+  - `OldImage` に対して REMOVE 相当の逆演算を適用する
+  - `NewImage` に対して INSERT 相当の加算を適用する
+  - これにより `loserUserId` / `point` / `matchDate` が変化しても一貫して整合を維持する
+
+4. エラーハンドリングと再処理
+  - Lambda は DynamoDB Streams の再試行前提で実装する
+  - 同一ストリームレコードの重複処理を避けるため、必要に応じて冪等キー(例: `eventID`)を管理する
 
 ### データモデル
 
@@ -180,7 +229,8 @@
   - `eventId` (string, PK): イベントID(公開用URL識別子として使用)
   - `name` (string, required): イベント名
   - `eventDate` (date, required): 開催日
-  - `status` (enum, required): `open` / `close` / `hide` (デフォルト `open`)
+  - `status` (enum, required): `open` / `close` (デフォルト `open`)
+  - `isTest` (boolean, required): テストイベントフラグ (デフォルト `false`)
 
 #### PublicProfile
 
@@ -216,11 +266,31 @@
   - `point` (number, required): 1-25 の奇数、デフォルト 5
   - `isJbsRated` (boolean, required): JBSレーティング対象フラグ
 
+#### FiscalYearLeaderboard
+
+- 用途: 年度ランキングのマテリアライズドビュー(表示用)
+- 主な項目
+  - `fiscalYear` (number, PK): 年度開始年(例: 2025)
+  - `userId` (string, SK): ユーザーID
+  - `totalPoint` (number, required): 勝敗差し引き後の合計ポイント
+  - `totalPlayedPoint` (number, required): 勝敗に関係なく対戦したポイント合計
+
+#### EventUserContribution
+
+- 用途: イベント単位のユーザー寄与を保持する内部マテリアライズドビュー
+- 主な項目
+  - `eventId` (string, PK): イベントID
+  - `userId` (string, SK): ユーザーID
+  - `fiscalYear` (number, required): 当該寄与が属する年度
+  - `pointDelta` (number, required): 当該イベントでの勝敗差分
+  - `playedPointDelta` (number, required): 当該イベントでの通算ポイント差分
+
 #### 制約・インデックス方針
 
 - `eventId` は一意な文字列IDを採用する
 - `MatchResult` は `eventId + playerUserId + loserUserId + matchDate + matchTime` で重複検知する
-- 現実装のスキーマでは、各モデルは主キー(identifier)のみを定義し、追加の複合インデックスは定義しない
+- `FiscalYearLeaderboard` は `fiscalYear` を起点にランキング取得できるインデックスを持つ
+- `EventUserContribution` は `eventId` を起点に寄与データを取得できる構造とする
 - `createdAt` / `updatedAt` は Amplify Data の自動管理項目として扱い、アプリ固有項目としては定義しない
 
 ### 画面ルーティング

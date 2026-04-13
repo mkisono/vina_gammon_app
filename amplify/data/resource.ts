@@ -11,7 +11,8 @@ const schema = a.schema({
       eventId: a.id().required(),
       name: a.string().required(),
       eventDate: a.date().required(),
-      status: a.enum(["open", "close", "hide"]),
+      status: a.enum(["open", "close"]),
+      isTest: a.boolean(),
     })
     .identifier(["eventId"])
     .authorization((allow) => [
@@ -70,6 +71,32 @@ const schema = a.schema({
       allow.authenticated().to(["read", "create"]),
       allow.ownerDefinedIn("playerUserId").to(["update"]),
       allow.group("ADMIN").to(["update", "delete"]),
+    ]),
+
+  FiscalYearLeaderboard: a
+    .model({
+      fiscalYear: a.integer().required(),
+      userId: a.id().required(),
+      totalPoint: a.integer().required(),
+      totalPlayedPoint: a.integer().required(),
+    })
+    .identifier(["fiscalYear", "userId"])
+    .authorization((allow) => [
+      allow.authenticated().to(["read"]),
+      allow.group("ADMIN").to(["create", "update", "delete"]),
+    ]),
+
+  EventUserContribution: a
+    .model({
+      eventId: a.id().required(),
+      userId: a.id().required(),
+      fiscalYear: a.integer().required(),
+      pointDelta: a.integer().required(),
+      playedPointDelta: a.integer().required(),
+    })
+    .identifier(["eventId", "userId"])
+    .authorization((allow) => [
+      allow.group("ADMIN").to(["create", "read", "update", "delete"]),
     ]),
 });
 

@@ -13,7 +13,7 @@ type UseLeaderboardParams = {
   scope: LeaderboardScope;
   eventId?: string;
   fiscalYearStartYear?: number;
-  eventStatusById?: Map<string, "open" | "close" | "hide">;
+  eventIsTestById?: Map<string, boolean>;
   enabled?: boolean;
 };
 
@@ -21,60 +21,85 @@ type UseLeaderboardReturn = {
   rows: LeaderboardRow[];
 };
 
+/** FiscalYearLeaderboard MV アイテムをランク付き LeaderboardRow に変換 */
+function buildFiscalYearRows(
+  mvItems: Array<Schema["FiscalYearLeaderboard"]["type"]>,
+  profiles: Array<Schema["PublicProfile"]["type"]>
+): LeaderboardRow[] {
+  const nicknameById = new Map<string, string>();
+  for (const p of profiles) {
+    nicknameById.set(p.userId, p.nickname ?? p.userId);
+  }
+  const sorted = [...mvItems].sort((a, b) => (b.totalPoint ?? 0) - (a.totalPoint ?? 0));
+  return sorted.map((item, i) => ({
+    rank: i + 1,
+    userId: item.userId,
+    nickname: nicknameById.get(item.userId) ?? item.userId,
+    totalPoint: item.totalPoint ?? 0,
+    totalPlayedPoint: item.totalPlayedPoint ?? 0,
+  }));
+}
+
 export function useLeaderboard({
   scope,
   eventId,
   fiscalYearStartYear,
-  eventStatusById: externalEventStatusById,
+  eventIsTestById: externalEventIsTestById,
   enabled = true,
 }: UseLeaderboardParams): UseLeaderboardReturn {
+  const isFiscalYear = scope === "FISCAL_YEAR";
+
+  // --- MV path (FISCAL_YEAR) ---
+  const [mvItems, setMvItems] = useState<Array<Schema["FiscalYearLeaderboard"]["type"]>>([]);
+
+  // --- Classic path (EVENT / ALL_TIME) ---
   const [results, setResults] = useState<Array<Schema["MatchResult"]["type"]>>([]);
-  const [profiles, setProfiles] = useState<Array<Schema["PublicProfile"]["type"]>>([]);
   const [events, setEvents] = useState<Array<Schema["Event"]["type"]>>([]);
 
+  // profiles は両パスで共用
+  const [profiles, setProfiles] = useState<Array<Schema["PublicProfile"]["type"]>>([]);
+
   const resultFilter = useMemo(() => {
+    if (isFiscalYear) return undefined; // MV パスでは不使用
     if (scope === "EVENT") {
-      if (!eventId) {
-        return null;
-      }
+      if (!eventId) return null;
       return { eventId: { eq: eventId } };
     }
-    if (scope === "FISCAL_YEAR") {
-      if (fiscalYearStartYear === undefined) {
-        return null;
-      }
-      const fiscalYearRange: [string, string] = [
-        `${fiscalYearStartYear}-04-01`,
-        `${fiscalYearStartYear + 1}-03-31`,
-      ];
-      return {
-        matchDate: {
-          between: fiscalYearRange,
-        },
-      };
-    }
     return undefined;
-  }, [scope, eventId, fiscalYearStartYear]);
+  }, [isFiscalYear, scope, eventId]);
 
+  // FISCAL_YEAR: MV を購読
   useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-    if (resultFilter === null) {
-      return;
-    }
+    if (!enabled || !isFiscalYear || fiscalYearStartYear === undefined) return;
 
-    const resultSub = client.models.MatchResult.observeQuery(
-      resultFilter ? { filter: resultFilter } : undefined
-    ).subscribe({
-      next: ({ items }) => setResults([...items]),
-    });
+    const mvSub = client.models.FiscalYearLeaderboard.observeQuery({
+      filter: { fiscalYear: { eq: fiscalYearStartYear } },
+    }).subscribe({ next: ({ items }) => setMvItems([...items]) });
 
     const profileSub = client.models.PublicProfile.observeQuery().subscribe({
       next: ({ items }) => setProfiles([...items]),
     });
 
-    const eventSub = externalEventStatusById
+    return () => {
+      mvSub.unsubscribe();
+      profileSub.unsubscribe();
+    };
+  }, [enabled, isFiscalYear, fiscalYearStartYear]);
+
+  // EVENT / ALL_TIME: MatchResult を購読
+  useEffect(() => {
+    if (!enabled || isFiscalYear) return;
+    if (resultFilter === null) return;
+
+    const resultSub = client.models.MatchResult.observeQuery(
+      resultFilter ? { filter: resultFilter } : undefined
+    ).subscribe({ next: ({ items }) => setResults([...items]) });
+
+    const profileSub = client.models.PublicProfile.observeQuery().subscribe({
+      next: ({ items }) => setProfiles([...items]),
+    });
+
+    const eventSub = externalEventIsTestById
       ? null
       : client.models.Event.observeQuery().subscribe({
           next: ({ items }) => setEvents([...items]),
@@ -85,34 +110,32 @@ export function useLeaderboard({
       profileSub.unsubscribe();
       eventSub?.unsubscribe();
     };
-  }, [enabled, resultFilter, externalEventStatusById]);
+  }, [enabled, isFiscalYear, resultFilter, externalEventIsTestById]);
 
-  const internalEventStatusById = useMemo(() => {
-    const map = new Map<string, "open" | "close" | "hide">();
+  const internalEventIsTestById = useMemo(() => {
+    const map = new Map<string, boolean>();
     for (const event of events) {
-      map.set(event.eventId, (event.status ?? "open") as "open" | "close" | "hide");
+      map.set(event.eventId, Boolean(event.isTest));
     }
     return map;
   }, [events]);
 
-  const eventStatusById = externalEventStatusById ?? internalEventStatusById;
+  const eventIsTestById = externalEventIsTestById ?? internalEventIsTestById;
 
-  const rows = useMemo(
-    () => {
-      if (resultFilter === null) {
-        return [];
-      }
-      return buildLeaderboard({
-        results,
-        profiles,
-        eventStatusById,
-        scope,
-        eventId,
-        fiscalYearStartYear,
-      });
-    },
-    [results, profiles, eventStatusById, scope, eventId, fiscalYearStartYear, resultFilter]
-  );
+  const rows = useMemo(() => {
+    if (isFiscalYear) {
+      return buildFiscalYearRows(mvItems, profiles);
+    }
+    if (resultFilter === null) return [];
+    return buildLeaderboard({
+      results,
+      profiles,
+      eventIsTestById,
+      scope,
+      eventId,
+      fiscalYearStartYear,
+    });
+  }, [isFiscalYear, mvItems, results, profiles, eventIsTestById, scope, eventId, fiscalYearStartYear, resultFilter]);
 
   return { rows };
 }
