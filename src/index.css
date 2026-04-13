@@ -381,6 +381,34 @@ h2.amplify-heading {
   white-space: nowrap;
 }
 
+.result-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 29, 46, 0.48);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 40;
+}
+
+.result-dialog {
+  width: min(100%, 28rem);
+  max-height: min(100vh - 2rem, 40rem);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+  padding: 1rem;
+}
+
+.result-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
 .result-form button:not(.result-combobox-option),
 .event-form button {
   border-radius: 999px !important;
@@ -523,6 +551,16 @@ a {
   .result-table td:nth-child(5) { width: 4rem; }
   .result-table th:nth-child(6),
   .result-table td:nth-child(6) { width: 9rem; }
+
+  .result-dialog {
+    width: min(100%, 32rem);
+    padding: 0.9rem;
+    border-radius: 14px;
+  }
+
+  .result-dialog-actions {
+    flex-wrap: wrap;
+  }
 
   .leaderboard-table th,
   .leaderboard-table td {
