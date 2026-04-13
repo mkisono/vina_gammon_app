@@ -239,6 +239,53 @@ h2.amplify-heading {
   width: 100%;
 }
 
+.result-combobox {
+  position: relative;
+  width: 100%;
+}
+
+.result-combobox-list {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-soft);
+  z-index: 20;
+}
+
+.result-combobox-option,
+.result-combobox-empty {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+}
+
+.result-combobox-option {
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-weight: 400;
+  transform: none !important;
+}
+
+.result-combobox-option:hover,
+.result-combobox-option.is-active {
+  background: #f2f8fc;
+}
+
+.result-combobox-empty {
+  color: var(--color-text-subtle);
+}
+
 .result-checkbox-row {
   display: flex;
   align-items: center;
@@ -305,6 +352,18 @@ h2.amplify-heading {
 .result-table-input {
   width: 100%;
   min-width: 0;
+  min-height: 36px;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-text);
+  font: inherit;
+}
+
+.result-table-input:focus {
+  outline: 2px solid rgba(123, 181, 205, 0.45);
+  border-color: var(--color-accent);
 }
 
 .result-table-checkbox-label {
@@ -322,7 +381,35 @@ h2.amplify-heading {
   white-space: nowrap;
 }
 
-.result-form button,
+.result-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 29, 46, 0.48);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 40;
+}
+
+.result-dialog {
+  width: min(100%, 28rem);
+  max-height: min(100vh - 2rem, 40rem);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+  padding: 1rem;
+}
+
+.result-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.result-form button:not(.result-combobox-option),
 .event-form button {
   border-radius: 999px !important;
   border: 1px solid var(--color-secondary) !important;
@@ -332,13 +419,13 @@ h2.amplify-heading {
   transition: transform 0.16s ease, filter 0.16s ease;
 }
 
-.result-form button:hover,
+.result-form button:not(.result-combobox-option):hover,
 .event-form button:hover {
   filter: brightness(0.92);
   transform: translateY(-1px);
 }
 
-.result-form button:focus-visible,
+.result-form button:not(.result-combobox-option):focus-visible,
 .event-form button:focus-visible {
   outline: 3px solid rgba(20, 38, 63, 0.26);
   outline-offset: 1px;
@@ -464,6 +551,16 @@ a {
   .result-table td:nth-child(5) { width: 4rem; }
   .result-table th:nth-child(6),
   .result-table td:nth-child(6) { width: 9rem; }
+
+  .result-dialog {
+    width: min(100%, 32rem);
+    padding: 0.9rem;
+    border-radius: 14px;
+  }
+
+  .result-dialog-actions {
+    flex-wrap: wrap;
+  }
 
   .leaderboard-table th,
   .leaderboard-table td {
