@@ -30,6 +30,11 @@ export function ProfilePage({ signOut }: ProfilePageProps) {
   const canDecideProfile = !isLoading && !isLoadingProfile;
   const profileRequired = !hasProfile;
 
+  // ユーザー切替時は初回判定状態をリセットする。
+  useEffect(() => {
+    initialProfileRequiredRef.current = null;
+  }, [userId]);
+
   useEffect(() => {
     if (!canDecideProfile) {
       return;
