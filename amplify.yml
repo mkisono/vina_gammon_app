@@ -18,3 +18,7 @@ frontend:
     paths:
       - .npm/**/*
       - node_modules/**/*
+  redirects:
+    - source: '</^[^.]+$|\.(?!js$|css$|svg$|png$|jpg$|jpeg$|gif$|ico$|webp$)/'
+      target: /index.html
+      status: 200
