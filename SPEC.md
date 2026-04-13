@@ -180,6 +180,8 @@
   - `MatchResult` の DynamoDB Streams をトリガーに Lambda を起動し、集計結果テーブルを更新する
   - ランキング表示は集計済みテーブル(`FiscalYearLeaderboard`)を参照し、都度全件再集計は行わない
   - 集計対象判定は `Event.isTest` に基づく
+  - 年度ランキングはリアルタイム購読を保証しない。トップページ表示時(再読み込み時)に最新のMVを取得する
+  - イベントページのランキング/試合結果は `MatchResult` の購読によりリアルタイム更新する
 
 #### 年度ランキングMV更新仕様
 
@@ -219,6 +221,7 @@
 4. エラーハンドリングと再処理
   - Lambda は DynamoDB Streams の再試行前提で実装する
   - 同一ストリームレコードの重複処理を避けるため、必要に応じて冪等キー(例: `eventID`)を管理する
+  - Lambda から `FiscalYearLeaderboard` / `EventUserContribution` を直接更新する場合、`createdAt` / `updatedAt` を必ず設定して GraphQL モデル整合性を維持する
 
 ### データモデル
 
