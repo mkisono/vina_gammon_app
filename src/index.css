@@ -102,12 +102,10 @@ h2.amplify-heading {
 }
 
 .appbar-home-icon {
-  width: 14px;
-  height: 14px;
-  border-left: 2px solid #fff;
-  border-bottom: 2px solid #fff;
-  transform: rotate(45deg) translate(1px, -1px);
-  display: inline-block;
+  width: 16px;
+  height: 16px;
+  display: block;
+  color: #fff;
 }
 
 .appbar-home-link:hover {
