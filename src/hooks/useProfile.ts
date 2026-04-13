@@ -82,6 +82,10 @@ export function useProfile(userId: string | null): UseProfileReturn {
         client.models.PrivateProfile.get({ userId }),
       ]);
 
+      const publicExists = Boolean(publicGetRes.data);
+      const privateExists = Boolean(privateGetRes.data);
+      const previousNicknameKey = toNicknameKey(publicGetRes.data?.nickname ?? "");
+      const isNicknameChanged = previousNicknameKey !== nicknameKey;
       // Frontend check: 先に重複を検知してユーザーへ即時フィードバック。
       const existingReservationRes = await client.models.NicknameRegistry.get({ nicknameKey });
       if (existingReservationRes.data && existingReservationRes.data.userId !== userId) {
@@ -89,13 +93,7 @@ export function useProfile(userId: string | null): UseProfileReturn {
         return;
       }
 
-      const publicExists = Boolean(publicGetRes.data);
-      const privateExists = Boolean(privateGetRes.data);
-      const previousNicknameKey = toNicknameKey(publicGetRes.data?.nickname ?? "");
-      const isNicknameChanged = previousNicknameKey !== nicknameKey;
       let createdReservation = false;
-
-      // Server-side check: nicknameKey を主キーに予約モデルを作成し一意制約を担保する。
       if (!existingReservationRes.data) {
         const reserveRes = await client.models.NicknameRegistry.create({
           nicknameKey,
@@ -108,38 +106,37 @@ export function useProfile(userId: string | null): UseProfileReturn {
         createdReservation = true;
       }
 
-      const [publicSaveRes, privateSaveRes] = await Promise.all([
-        publicExists
-          ? client.models.PublicProfile.update({
-              userId,
-              nickname: trimmedNickname,
-            })
-          : client.models.PublicProfile.create({
-              userId,
-              nickname: trimmedNickname,
-            }),
-        privateExists
-          ? client.models.PrivateProfile.update({
-              userId,
-              realName: trimmedRealName,
-            })
-          : client.models.PrivateProfile.create({
-              userId,
-              realName: trimmedRealName,
-            }),
-      ]);
+      const publicSaveRes = publicExists
+        ? await client.models.PublicProfile.update({
+            userId,
+            nickname: trimmedNickname,
+          })
+        : await client.models.PublicProfile.create({
+            userId,
+            nickname: trimmedNickname,
+          });
 
       if (publicSaveRes.errors?.length) {
-        if (createdReservation && isNicknameChanged) {
+        // PublicProfile 反映前のため、新規に確保した予約は安全に解放できる。
+        if (createdReservation) {
           await client.models.NicknameRegistry.delete({ nicknameKey });
         }
         window.alert(`プロフィール更新に失敗しました: ${publicSaveRes.errors[0].message}`);
         return;
       }
+
+      const privateSaveRes = privateExists
+        ? await client.models.PrivateProfile.update({
+            userId,
+            realName: trimmedRealName,
+          })
+        : await client.models.PrivateProfile.create({
+            userId,
+            realName: trimmedRealName,
+          });
+
       if (privateSaveRes.errors?.length) {
-        if (createdReservation && isNicknameChanged) {
-          await client.models.NicknameRegistry.delete({ nicknameKey });
-        }
+        // PublicProfile が新ニックネームへ更新済みのため、予約は残して整合性を優先する。
         window.alert(`プロフィール更新に失敗しました: ${privateSaveRes.errors[0].message}`);
         return;
       }
