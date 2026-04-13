@@ -31,6 +31,17 @@ const schema = a.schema({
       allow.group("ADMIN").to(["read", "update", "delete"]),
     ]),
 
+  NicknameRegistry: a
+    .model({
+      nicknameKey: a.id().required(),
+      userId: a.id().required(),
+    })
+    .identifier(["nicknameKey"])
+    .authorization((allow) => [
+      allow.ownerDefinedIn("userId").to(["create", "read", "update", "delete"]),
+      allow.group("ADMIN").to(["read", "update", "delete"]),
+    ]),
+
   PrivateProfile: a
     .model({
       userId: a.id().required(),
