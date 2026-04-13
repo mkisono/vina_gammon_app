@@ -107,6 +107,7 @@ const updateEventUserContribution = async (
   pointDelta: number,
   playedPointDelta: number
 ) => {
+  const now = new Date().toISOString();
   await ddb.send(
     new UpdateItemCommand({
       TableName: EVENT_USER_CONTRIBUTION_TABLE_NAME,
@@ -114,9 +115,12 @@ const updateEventUserContribution = async (
         eventId: { S: eventId },
         userId: { S: userId },
       },
-      UpdateExpression: "SET fiscalYear = :fiscalYear ADD pointDelta :pointDelta, playedPointDelta :playedPointDelta",
+      UpdateExpression:
+        "SET fiscalYear = :fiscalYear, createdAt = if_not_exists(createdAt, :createdAt), updatedAt = :updatedAt ADD pointDelta :pointDelta, playedPointDelta :playedPointDelta",
       ExpressionAttributeValues: {
         ":fiscalYear": { N: String(fiscalYear) },
+        ":createdAt": { S: now },
+        ":updatedAt": { S: now },
         ":pointDelta": { N: String(pointDelta) },
         ":playedPointDelta": { N: String(playedPointDelta) },
       },
@@ -130,6 +134,7 @@ const updateFiscalYearLeaderboard = async (
   totalPointDelta: number,
   totalPlayedPointDelta: number
 ) => {
+  const now = new Date().toISOString();
   await ddb.send(
     new UpdateItemCommand({
       TableName: FISCAL_YEAR_LEADERBOARD_TABLE_NAME,
@@ -137,8 +142,11 @@ const updateFiscalYearLeaderboard = async (
         fiscalYear: { N: String(fiscalYear) },
         userId: { S: userId },
       },
-      UpdateExpression: "ADD totalPoint :totalPointDelta, totalPlayedPoint :totalPlayedPointDelta",
+      UpdateExpression:
+        "SET createdAt = if_not_exists(createdAt, :createdAt), updatedAt = :updatedAt ADD totalPoint :totalPointDelta, totalPlayedPoint :totalPlayedPointDelta",
       ExpressionAttributeValues: {
+        ":createdAt": { S: now },
+        ":updatedAt": { S: now },
         ":totalPointDelta": { N: String(totalPointDelta) },
         ":totalPlayedPointDelta": { N: String(totalPlayedPointDelta) },
       },
