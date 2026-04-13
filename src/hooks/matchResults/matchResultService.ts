@@ -12,7 +12,6 @@ type CreateMatchResultInput = {
   matchTime: string;
   point: number;
   isJbsRated: boolean;
-  createdByUserId: string;
 };
 
 type UpdateMatchResultInput = {

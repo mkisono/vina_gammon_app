@@ -152,7 +152,6 @@ export function useMatchResults(
         matchTime: autoMatchTime,
         point,
         isJbsRated,
-        createdByUserId: playerUserId,
       });
       if (result.errors?.length) {
         window.alert(`試合結果の登録に失敗しました: ${result.errors[0].message}`);

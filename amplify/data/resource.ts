@@ -64,12 +64,11 @@ const schema = a.schema({
       matchTime: a.time().required(),
       point: a.integer().required(), // 1-25 odd number
       isJbsRated: a.boolean().required(),
-      createdByUserId: a.id().required(),
     })
     .identifier(["resultId"])
     .authorization((allow) => [
       allow.authenticated().to(["read", "create"]),
-      allow.ownerDefinedIn("createdByUserId").to(["update"]),
+      allow.ownerDefinedIn("playerUserId").to(["update"]),
       allow.group("ADMIN").to(["update", "delete"]),
     ]),
 });
