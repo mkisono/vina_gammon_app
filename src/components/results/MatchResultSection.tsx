@@ -1,5 +1,6 @@
 import { Button, Heading, Text, View } from "@aws-amplify/ui-react";
 import type { Schema } from "../../../amplify/data/resource";
+import { SearchableCombobox } from "./SearchableCombobox";
 
 const POINT_OPTIONS = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25];
 
@@ -90,19 +91,14 @@ export function MatchResultSection({
           <View marginTop="0.75rem" className="result-form">
             <View className="result-field-group">
               <Text className="result-field-label">対戦相手</Text>
-              <select
+              <SearchableCombobox
                 value={opponentNickname}
-                onChange={(e) => onChangeOpponentNickname(e.target.value)}
-                className="result-field-input"
+                onChange={onChangeOpponentNickname}
+                options={opponentNicknameOptions}
+                placeholder="対戦相手ニックネームを検索して選択してください"
+                inputClassName="result-field-input"
                 disabled={!canCreateResult}
-              >
-                <option value="">対戦相手ニックネームを選択してください</option>
-                {opponentNicknameOptions.map((nickname) => (
-                  <option key={nickname} value={nickname}>
-                    {nickname}
-                  </option>
-                ))}
-              </select>
+              />
             </View>
 
             <View className="result-field-group">
@@ -177,19 +173,14 @@ export function MatchResultSection({
                           <td>{winnerDisplayName}</td>
                           <td>
                             {isEditing ? (
-                              <select
+                              <SearchableCombobox
                                 value={editingOpponentNickname}
-                                onChange={(e) => onChangeEditingOpponentNickname(e.target.value)}
-                                className="result-table-input"
+                                onChange={onChangeEditingOpponentNickname}
+                                options={opponentNicknameOptions}
+                                placeholder="対戦相手ニックネームを検索"
+                                inputClassName="result-table-input"
                                 aria-label="対戦相手ニックネーム"
-                              >
-                                <option value="">対戦相手ニックネームを選択</option>
-                                {opponentNicknameOptions.map((nickname) => (
-                                  <option key={nickname} value={nickname}>
-                                    {nickname}
-                                  </option>
-                                ))}
-                              </select>
+                              />
                             ) : (
                               loserDisplayName
                             )}
