@@ -9,6 +9,8 @@ import {
 
 const client = generateClient<Schema>();
 
+const isNonNullable = <T,>(value: T | null | undefined): value is T => value != null;
+
 type UseLeaderboardParams = {
   scope: LeaderboardScope;
   eventId?: string;
@@ -27,10 +29,12 @@ function buildFiscalYearRows(
   profiles: Array<Schema["PublicProfile"]["type"]>
 ): LeaderboardRow[] {
   const nicknameById = new Map<string, string>();
-  for (const p of profiles) {
+  for (const p of profiles.filter(isNonNullable)) {
     nicknameById.set(p.userId, p.nickname ?? p.userId);
   }
-  const sorted = [...mvItems].sort((a, b) => (b.totalPoint ?? 0) - (a.totalPoint ?? 0));
+  const sorted = mvItems
+    .filter(isNonNullable)
+    .sort((a, b) => (b.totalPoint ?? 0) - (a.totalPoint ?? 0));
   return sorted.map((item, i) => ({
     rank: i + 1,
     userId: item.userId,
@@ -74,10 +78,12 @@ export function useLeaderboard({
 
     const mvSub = client.models.FiscalYearLeaderboard.observeQuery({
       filter: { fiscalYear: { eq: fiscalYearStartYear } },
-    }).subscribe({ next: ({ items }) => setMvItems([...items]) });
+    }).subscribe({
+      next: ({ items }) => setMvItems(items.filter(isNonNullable)),
+    });
 
     const profileSub = client.models.PublicProfile.observeQuery().subscribe({
-      next: ({ items }) => setProfiles([...items]),
+      next: ({ items }) => setProfiles(items.filter(isNonNullable)),
     });
 
     return () => {
@@ -93,16 +99,16 @@ export function useLeaderboard({
 
     const resultSub = client.models.MatchResult.observeQuery(
       resultFilter ? { filter: resultFilter } : undefined
-    ).subscribe({ next: ({ items }) => setResults([...items]) });
+    ).subscribe({ next: ({ items }) => setResults(items.filter(isNonNullable)) });
 
     const profileSub = client.models.PublicProfile.observeQuery().subscribe({
-      next: ({ items }) => setProfiles([...items]),
+      next: ({ items }) => setProfiles(items.filter(isNonNullable)),
     });
 
     const eventSub = externalEventIsTestById
       ? null
       : client.models.Event.observeQuery().subscribe({
-          next: ({ items }) => setEvents([...items]),
+          next: ({ items }) => setEvents(items.filter(isNonNullable)),
         });
 
     return () => {
