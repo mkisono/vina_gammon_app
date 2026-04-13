@@ -1,39 +1,62 @@
-import { useEffect, useState } from "react";
-import type { Schema } from "../amplify/data/resource";
-import { generateClient } from "aws-amplify/data";
+import { Authenticator } from "@aws-amplify/ui-react";
+import type { AuthUser } from "aws-amplify/auth";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HomePage } from "./pages/HomePage";
+import { EventPage } from "./pages/EventPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { EventCreatePage } from "./pages/EventCreatePage";
 
-const client = generateClient<Schema>();
+type AuthenticatedContentProps = {
+  signOut?: () => void;
+  user?: AuthUser;
+};
+
+function AuthenticatedContent({ signOut, user }: AuthenticatedContentProps) {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage signOut={signOut} user={user} />} />
+        <Route path="/profile" element={<ProfilePage signOut={signOut} user={user} />} />
+        <Route path="/events/create" element={<EventCreatePage signOut={signOut} user={user} />} />
+        <Route path="/events/:eventId" element={<EventPage signOut={signOut} user={user} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 
 function App() {
-  const [todos, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
-
-  useEffect(() => {
-    client.models.Todo.observeQuery().subscribe({
-      next: (data) => setTodos([...data.items]),
-    });
-  }, []);
-
-  function createTodo() {
-    client.models.Todo.create({ content: window.prompt("Todo content") });
-  }
-
   return (
-    <main>
-      <h1>My todos</h1>
-      <button onClick={createTodo}>+ new</button>
-      <ul>
-        {todos.map((todo) => (
-          <li key={todo.id}>{todo.content}</li>
-        ))}
-      </ul>
-      <div>
-        🥳 App successfully hosted. Try creating a new todo.
-        <br />
-        <a href="https://docs.amplify.aws/react/start/quickstart/#make-frontend-updates">
-          Review next step of this tutorial.
-        </a>
-      </div>
-    </main>
+    <Authenticator
+      loginMechanisms={["email"]}
+      passwordless={{
+        preferredAuthMethod: "EMAIL_OTP",
+        hiddenAuthMethods: ["PASSWORD", "SMS_OTP", "WEB_AUTHN"],
+      }}
+      formFields={{
+        signIn: {
+          password: {
+            type: "hidden",
+            isRequired: false,
+            labelHidden: true,
+          },
+        },
+        signUp: {
+          password: {
+            type: "hidden",
+            isRequired: false,
+            labelHidden: true,
+          },
+          confirm_password: {
+            type: "hidden",
+            isRequired: false,
+            labelHidden: true,
+          },
+        },
+      }}
+    >
+      {({ signOut, user }) => <AuthenticatedContent signOut={signOut} user={user} />}
+    </Authenticator>
   );
 }
 
