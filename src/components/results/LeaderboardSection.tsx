@@ -25,7 +25,7 @@ export function LeaderboardSection({
                 <th scope="col">順位</th>
                 <th scope="col">ニックネーム</th>
                 <th scope="col">合計ポイント</th>
-                <th scope="col">試合数</th>
+                <th scope="col">通算ポイント数</th>
               </tr>
             </thead>
             <tbody>
@@ -34,7 +34,7 @@ export function LeaderboardSection({
                   <td>{row.rank}</td>
                   <td>{row.nickname}</td>
                   <td>{row.totalPoint}</td>
-                  <td>{row.matchCount}</td>
+                  <td>{row.totalPlayedPoint}</td>
                 </tr>
               ))}
             </tbody>

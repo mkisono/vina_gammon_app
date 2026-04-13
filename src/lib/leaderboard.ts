@@ -7,7 +7,7 @@ export type LeaderboardRow = {
   userId: string;
   nickname: string;
   totalPoint: number;
-  matchCount: number;
+  totalPlayedPoint: number;
 };
 
 type BuildLeaderboardParams = {
@@ -76,25 +76,32 @@ export const buildLeaderboard = ({
     profileNicknameByUserId.set(profile.userId, profile.nickname ?? profile.userId);
   }
 
-  const aggregate = new Map<string, { totalPoint: number; matchCount: number }>();
+  const aggregate = new Map<string, { totalPoint: number; totalPlayedPoint: number }>();
+
+  const addResultForUser = (userId: string | null | undefined, deltaPoint: number, playedPoint: number) => {
+    if (!userId) {
+      return;
+    }
+    const current = aggregate.get(userId) ?? { totalPoint: 0, totalPlayedPoint: 0 };
+    aggregate.set(userId, {
+      totalPoint: current.totalPoint + deltaPoint,
+      totalPlayedPoint: current.totalPlayedPoint + playedPoint,
+    });
+  };
 
   for (const result of results) {
     if (!filterByScope(result, scope, eventStatusById, eventId, fiscalYearStartYear)) {
       continue;
     }
 
-    const userId = result.playerUserId;
     const point = result.point ?? 0;
 
-    if (!userId || point <= 0) {
+    if (point <= 0) {
       continue;
     }
 
-    const current = aggregate.get(userId) ?? { totalPoint: 0, matchCount: 0 };
-    aggregate.set(userId, {
-      totalPoint: current.totalPoint + point,
-      matchCount: current.matchCount + 1,
-    });
+    addResultForUser(result.playerUserId, point, point);
+    addResultForUser(result.loserUserId, -point, point);
   }
 
   const rows = Array.from(aggregate.entries()).map(([userId, values]) => ({
@@ -102,7 +109,7 @@ export const buildLeaderboard = ({
     userId,
     nickname: profileNicknameByUserId.get(userId) ?? userId,
     totalPoint: values.totalPoint,
-    matchCount: values.matchCount,
+    totalPlayedPoint: values.totalPlayedPoint,
   }));
 
   rows.sort((a, b) => {

@@ -377,13 +377,13 @@ h2.amplify-heading {
   table-layout: fixed;
 }
 
-/* 順位:4rem ニックネーム:auto 合計ポイント:7rem 試合数:5rem */
+/* 順位:4rem ニックネーム:auto 合計ポイント:7rem 通算ポイント数:7rem */
 .leaderboard-table th:nth-child(1),
 .leaderboard-table td:nth-child(1) { width: 4rem; text-align: right; }
 .leaderboard-table th:nth-child(3),
 .leaderboard-table td:nth-child(3) { width: 7rem; text-align: right; }
 .leaderboard-table th:nth-child(4),
-.leaderboard-table td:nth-child(4) { width: 5rem; text-align: right; }
+.leaderboard-table td:nth-child(4) { width: 8rem; text-align: right; }
 
 .leaderboard-table th,
 .leaderboard-table td {
@@ -476,5 +476,5 @@ a {
   .leaderboard-table th:nth-child(3),
   .leaderboard-table td:nth-child(3) { width: 6rem; }
   .leaderboard-table th:nth-child(4),
-  .leaderboard-table td:nth-child(4) { width: 4rem; }
+  .leaderboard-table td:nth-child(4) { width: 7rem; }
 }
