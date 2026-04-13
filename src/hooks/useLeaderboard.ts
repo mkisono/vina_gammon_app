@@ -13,6 +13,8 @@ type UseLeaderboardParams = {
   scope: LeaderboardScope;
   eventId?: string;
   fiscalYearStartYear?: number;
+  eventStatusById?: Map<string, "open" | "close" | "hide">;
+  enabled?: boolean;
 };
 
 type UseLeaderboardReturn = {
@@ -23,13 +25,48 @@ export function useLeaderboard({
   scope,
   eventId,
   fiscalYearStartYear,
+  eventStatusById: externalEventStatusById,
+  enabled = true,
 }: UseLeaderboardParams): UseLeaderboardReturn {
   const [results, setResults] = useState<Array<Schema["MatchResult"]["type"]>>([]);
   const [profiles, setProfiles] = useState<Array<Schema["PublicProfile"]["type"]>>([]);
   const [events, setEvents] = useState<Array<Schema["Event"]["type"]>>([]);
 
+  const resultFilter = useMemo(() => {
+    if (scope === "EVENT") {
+      if (!eventId) {
+        return null;
+      }
+      return { eventId: { eq: eventId } };
+    }
+    if (scope === "FISCAL_YEAR") {
+      if (fiscalYearStartYear === undefined) {
+        return null;
+      }
+      const fiscalYearRange: [string, string] = [
+        `${fiscalYearStartYear}-04-01`,
+        `${fiscalYearStartYear + 1}-03-31`,
+      ];
+      return {
+        matchDate: {
+          between: fiscalYearRange,
+        },
+      };
+    }
+    return undefined;
+  }, [scope, eventId, fiscalYearStartYear]);
+
   useEffect(() => {
-    const resultSub = client.models.MatchResult.observeQuery().subscribe({
+    if (!enabled) {
+      return;
+    }
+    if (resultFilter === null) {
+      return;
+    }
+
+    const resultSub = client.models.MatchResult.observeQuery(
+      resultFilter ? { filter: resultFilter } : undefined
+    ).subscribe({
       next: ({ items }) => setResults([...items]),
     });
 
@@ -37,18 +74,20 @@ export function useLeaderboard({
       next: ({ items }) => setProfiles([...items]),
     });
 
-    const eventSub = client.models.Event.observeQuery().subscribe({
-      next: ({ items }) => setEvents([...items]),
-    });
+    const eventSub = externalEventStatusById
+      ? null
+      : client.models.Event.observeQuery().subscribe({
+          next: ({ items }) => setEvents([...items]),
+        });
 
     return () => {
       resultSub.unsubscribe();
       profileSub.unsubscribe();
-      eventSub.unsubscribe();
+      eventSub?.unsubscribe();
     };
-  }, []);
+  }, [enabled, resultFilter, externalEventStatusById]);
 
-  const eventStatusById = useMemo(() => {
+  const internalEventStatusById = useMemo(() => {
     const map = new Map<string, "open" | "close" | "hide">();
     for (const event of events) {
       map.set(event.eventId, (event.status ?? "open") as "open" | "close" | "hide");
@@ -56,17 +95,23 @@ export function useLeaderboard({
     return map;
   }, [events]);
 
+  const eventStatusById = externalEventStatusById ?? internalEventStatusById;
+
   const rows = useMemo(
-    () =>
-      buildLeaderboard({
+    () => {
+      if (resultFilter === null) {
+        return [];
+      }
+      return buildLeaderboard({
         results,
         profiles,
         eventStatusById,
         scope,
         eventId,
         fiscalYearStartYear,
-      }),
-    [results, profiles, eventStatusById, scope, eventId, fiscalYearStartYear]
+      });
+    },
+    [results, profiles, eventStatusById, scope, eventId, fiscalYearStartYear, resultFilter]
   );
 
   return { rows };

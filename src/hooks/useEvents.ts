@@ -14,6 +14,7 @@ type UseEventsReturn = {
   events: Array<Schema["Event"]["type"]>;
   sortedEvents: Array<Schema["Event"]["type"]>;
   eventMap: Map<string, Schema["Event"]["type"]>;
+  eventStatusById: Map<string, "open" | "close" | "hide">;
   eventName: string;
   eventDate: string;
   eventStatus: "open" | "close" | "hide";
@@ -57,6 +58,14 @@ export function useEvents(enabled = true): UseEventsReturn {
     const map = new Map<string, Schema["Event"]["type"]>();
     for (const event of events) {
       map.set(event.eventId, event);
+    }
+    return map;
+  }, [events]);
+
+  const eventStatusById = useMemo(() => {
+    const map = new Map<string, "open" | "close" | "hide">();
+    for (const event of events) {
+      map.set(event.eventId, (event.status ?? "open") as "open" | "close" | "hide");
     }
     return map;
   }, [events]);
@@ -108,6 +117,7 @@ export function useEvents(enabled = true): UseEventsReturn {
     events,
     sortedEvents,
     eventMap,
+    eventStatusById,
     eventName,
     eventDate,
     eventStatus,

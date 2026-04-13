@@ -79,11 +79,15 @@ export function useMatchResults(
       return;
     }
 
-    const sub = client.models.MatchResult.observeQuery().subscribe({
+    const sub = client.models.MatchResult.observeQuery({
+      filter: {
+        eventId: { eq: currentEventId },
+      },
+    }).subscribe({
       next: ({ items }) => setResults([...items]),
     });
     return () => sub.unsubscribe();
-  }, [enabled]);
+  }, [enabled, currentEventId]);
 
   const opponentNicknameOptions = useMemo(() => {
     const nicknames = profiles

@@ -32,12 +32,15 @@ export function HomePage({ signOut }: HomePageProps) {
   const {
     events,
     sortedEvents,
+    eventStatusById,
     isUpdatingStatus,
     updateEventStatus,
   } = useEvents(isDataReady);
   const { rows: fiscalYearRows } = useLeaderboard({
     scope: "FISCAL_YEAR",
     fiscalYearStartYear,
+    eventStatusById,
+    enabled: isDataReady,
   });
 
   const profileRequired = !hasProfile;
