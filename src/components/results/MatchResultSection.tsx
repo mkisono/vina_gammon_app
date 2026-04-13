@@ -1,6 +1,8 @@
 import { Button, Heading, Text, View } from "@aws-amplify/ui-react";
 import type { Schema } from "../../../amplify/data/resource";
 
+const POINT_OPTIONS = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25];
+
 type MatchResultSectionProps = {
   currentEventId: string;
   currentEvent: Schema["Event"]["type"] | null;
@@ -67,7 +69,7 @@ export function MatchResultSection({
 
   return (
     <View marginTop="1.5rem">
-      <Heading level={4}>試合結果の登録・編集</Heading>
+      <Heading level={4}>試合結果の登録</Heading>
       <Text marginTop="0.35rem">運用ルール: 試合結果は勝者が登録してください。</Text>
       {!currentEventId ? (
         <Text marginTop="0.75rem">
@@ -105,16 +107,18 @@ export function MatchResultSection({
 
             <View className="result-field-group">
               <Text className="result-field-label">ポイント数</Text>
-              <input
-                type="number"
-                min={1}
-                max={25}
-                step={2}
+              <select
                 value={point}
                 onChange={(e) => onChangePoint(Number(e.target.value))}
                 className="result-field-input"
                 disabled={!canCreateResult}
-              />
+              >
+                {POINT_OPTIONS.map((pointOption) => (
+                  <option key={pointOption} value={pointOption}>
+                    {pointOption}
+                  </option>
+                ))}
+              </select>
             </View>
 
             <View className="result-checkbox-row">
@@ -192,16 +196,18 @@ export function MatchResultSection({
                           </td>
                           <td>
                             {isEditing ? (
-                              <input
-                                type="number"
-                                min={1}
-                                max={25}
-                                step={2}
+                              <select
                                 value={editingPoint}
                                 onChange={(e) => onChangeEditingPoint(Number(e.target.value))}
                                 className="result-table-input"
                                 aria-label="ポイント"
-                              />
+                              >
+                                {POINT_OPTIONS.map((pointOption) => (
+                                  <option key={pointOption} value={pointOption}>
+                                    {pointOption}
+                                  </option>
+                                ))}
+                              </select>
                             ) : (
                               `${result.point}pt`
                             )}
