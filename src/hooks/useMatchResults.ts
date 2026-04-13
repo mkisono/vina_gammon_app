@@ -1,16 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
-import { generateClient } from "aws-amplify/data";
+import { useMemo, useState } from "react";
 import { getJstTimeHHmm } from "../lib/eventPage";
 import type { Schema } from "../../amplify/data/resource";
+import {
+  buildEventResults,
+  buildFilteredResults,
+  buildOpponentNicknameOptions,
+} from "./matchResults/derived";
+import { useMatchResultsSubscription } from "./matchResults/useMatchResultsSubscription";
+import { useMatchResultFormState } from "./matchResults/useMatchResultFormState";
+import { useMatchResultEditState } from "./matchResults/useMatchResultEditState";
+import {
+  createMatchResultRecord,
+  updateMatchResultRecord,
+} from "./matchResults/matchResultService";
+import {
+  validateCreateInput,
+  validateUpdateInput,
+  resolveUserIdByNickname,
+  isValidPoint,
+} from "./matchResults/validation";
 
-const client = generateClient<Schema>();
 const POINT_STORAGE_KEY = "vina_gammon:lastRegisteredPoint";
 const DEFAULT_POINT = 5;
 
 const getDefaultPoint = (): number => {
   const saved = window.localStorage.getItem(POINT_STORAGE_KEY);
   const parsed = Number(saved);
-  if (validatePoint(parsed)) {
+  if (isValidPoint(parsed)) {
     return parsed;
   }
   return DEFAULT_POINT;
@@ -20,10 +36,6 @@ const createResultId = (): string => {
   const ts = Date.now().toString(16);
   const rand = Math.random().toString(16).slice(2, 18).padEnd(16, "0");
   return `${ts}-${rand}`;
-};
-
-const validatePoint = (value: number): boolean => {
-  return Number.isInteger(value) && value >= 1 && value <= 25 && value % 2 === 1;
 };
 
 type UseMatchResultsReturn = {
@@ -63,65 +75,40 @@ export function useMatchResults(
   isAdmin = false,
   enabled = true
 ): UseMatchResultsReturn {
-  const [results, setResults] = useState<Array<Schema["MatchResult"]["type"]>>([]);
-  const [opponentNickname, setOpponentNickname] = useState("");
-  const [point, setPoint] = useState(() => getDefaultPoint());
-  const [isJbsRated, setIsJbsRated] = useState(false);
+  const { results } = useMatchResultsSubscription(currentEventId, enabled);
+  const {
+    opponentNickname,
+    point,
+    isJbsRated,
+    setOpponentNickname,
+    setPoint,
+    setIsJbsRated,
+    resetAfterCreate,
+  } = useMatchResultFormState(getDefaultPoint());
+  const {
+    editingResultId,
+    editingOpponentNickname,
+    editingPoint,
+    editingIsJbsRated,
+    setEditingResultId,
+    setEditingOpponentNickname,
+    setEditingPoint,
+    setEditingIsJbsRated,
+    cancelEditResult,
+  } = useMatchResultEditState(1);
   const [isResultSubmitting, setIsResultSubmitting] = useState(false);
-  const [editingResultId, setEditingResultId] = useState("");
-  const [editingOpponentNickname, setEditingOpponentNickname] = useState("");
-  const [editingPoint, setEditingPoint] = useState(1);
-  const [editingIsJbsRated, setEditingIsJbsRated] = useState(false);
   const [isUpdatingResult, setIsUpdatingResult] = useState(false);
 
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-
-    const sub = client.models.MatchResult.observeQuery({
-      filter: {
-        eventId: { eq: currentEventId },
-      },
-    }).subscribe({
-      next: ({ items }) => setResults([...items]),
-    });
-    return () => sub.unsubscribe();
-  }, [enabled, currentEventId]);
-
   const opponentNicknameOptions = useMemo(() => {
-    const nicknames = profiles
-      .filter((p) => p.userId !== currentUserId)
-      .map((p) => (p.nickname ?? "").trim())
-      .filter((name) => name.length > 0);
-    return [...new Set(nicknames)].sort((a, b) => a.localeCompare(b));
+    return buildOpponentNicknameOptions(profiles, currentUserId);
   }, [profiles, currentUserId]);
 
   const eventResults = useMemo(() => {
-    if (!currentEventId) {
-      return [];
-    }
-    return [...results]
-      .filter((r) => r.eventId === currentEventId)
-      .sort((a, b) => `${b.matchDate ?? ""} ${b.matchTime ?? ""}`.localeCompare(`${a.matchDate ?? ""} ${a.matchTime ?? ""}`));
+    return buildEventResults(results, currentEventId);
   }, [results, currentEventId]);
 
   const filteredResults = useMemo(() => {
-    if (isAdmin) {
-      return eventResults;
-    }
-    if (!currentUserId) {
-      return [];
-    }
-    return eventResults.filter((r) => {
-      if (r.playerUserId === currentUserId) {
-        return true;
-      }
-      if (r.loserUserId === currentUserId) {
-        return true;
-      }
-      return false;
-    });
+    return buildFilteredResults(eventResults, currentUserId, isAdmin);
   }, [eventResults, currentUserId, isAdmin]);
 
   const createMatchResult = async (
@@ -129,37 +116,25 @@ export function useMatchResults(
     event: Schema["Event"]["type"],
     playerUserId: string
   ) => {
-    if (!eventId || !event) {
-      window.alert("イベントページから登録してください。");
-      return;
-    }
-    if (!playerUserId) {
-      window.alert("ユーザー情報を取得できません。再ログインしてください。");
-      return;
-    }
-    if ((event.status ?? "open") !== "open") {
-      window.alert("このイベントは現在結果登録を受け付けていません。");
-      return;
-    }
-    if (!opponentNickname) {
-      window.alert("対戦相手ニックネームを選択してください。");
-      return;
-    }
-    if (!opponentNicknameOptions.includes(opponentNickname)) {
-      window.alert("対戦相手ニックネームは登録済みユーザー一覧から選択してください。");
-      return;
-    }
-    if (!validatePoint(point)) {
-      window.alert("ポイントは 1-25 の奇数で入力してください。");
+    const createValidationError = validateCreateInput({
+      eventId,
+      event,
+      playerUserId,
+      opponentNickname,
+      opponentNicknameOptions,
+      point,
+    });
+    if (createValidationError) {
+      window.alert(createValidationError);
       return;
     }
 
-    const loserProfile = profiles.find((p) => (p.nickname ?? "").trim() === opponentNickname);
-    if (!loserProfile?.userId) {
+    const loserUserId = resolveUserIdByNickname(profiles, opponentNickname);
+    if (!loserUserId) {
       window.alert("対戦相手ユーザーを特定できません。プロフィールを確認してください。");
       return;
     }
-    if (loserProfile.userId === playerUserId) {
+    if (loserUserId === playerUserId) {
       window.alert("自分自身を対戦相手には指定できません。");
       return;
     }
@@ -168,11 +143,11 @@ export function useMatchResults(
     try {
       const autoMatchDate = event.eventDate;
       const autoMatchTime = getJstTimeHHmm();
-      const result = await client.models.MatchResult.create({
+      const result = await createMatchResultRecord({
         resultId: createResultId(),
         eventId,
         playerUserId,
-        loserUserId: loserProfile.userId,
+        loserUserId,
         matchDate: autoMatchDate,
         matchTime: autoMatchTime,
         point,
@@ -184,9 +159,7 @@ export function useMatchResults(
         return;
       }
       window.localStorage.setItem(POINT_STORAGE_KEY, String(point));
-      setOpponentNickname("");
-      setPoint(point);
-      setIsJbsRated(false);
+      resetAfterCreate();
     } finally {
       setIsResultSubmitting(false);
     }
@@ -200,51 +173,36 @@ export function useMatchResults(
     setEditingIsJbsRated(!!result.isJbsRated);
   };
 
-  const cancelEditResult = () => {
-    setEditingResultId("");
-  };
-
   const updateMatchResult = async (updaterUserId: string) => {
-    if (!editingResultId) {
-      return;
-    }
     const editingResult = results.find((r) => r.resultId === editingResultId);
-    if (!editingResult?.playerUserId) {
-      window.alert("更新対象の試合結果を特定できません。画面を再読み込みして再試行してください。");
-      return;
-    }
-    if (!editingOpponentNickname) {
-      window.alert("対戦相手ニックネームを選択してください。");
-      return;
-    }
-    if (!opponentNicknameOptions.includes(editingOpponentNickname)) {
-      window.alert("対戦相手ニックネームは登録済みユーザー一覧から選択してください。");
-      return;
-    }
-    if (!validatePoint(editingPoint)) {
-      window.alert("ポイントは 1-25 の奇数で入力してください。");
-      return;
-    }
-    if (!updaterUserId) {
-      window.alert("ユーザー情報を取得できません。再ログインしてください。");
+    const updateValidationError = validateUpdateInput({
+      editingResultId,
+      editingOpponentNickname,
+      opponentNicknameOptions,
+      editingPoint,
+      updaterUserId,
+      hasEditingResult: Boolean(editingResult?.playerUserId),
+    });
+    if (updateValidationError) {
+      window.alert(updateValidationError);
       return;
     }
 
-    const loserProfile = profiles.find((p) => (p.nickname ?? "").trim() === editingOpponentNickname);
-    if (!loserProfile?.userId) {
+    const loserUserId = resolveUserIdByNickname(profiles, editingOpponentNickname);
+    if (!loserUserId || !editingResult?.playerUserId) {
       window.alert("対戦相手ユーザーを特定できません。プロフィールを確認してください。");
       return;
     }
-    if (loserProfile.userId === editingResult.playerUserId) {
+    if (loserUserId === editingResult.playerUserId) {
       window.alert("勝者と敗者を同一ユーザーには指定できません。");
       return;
     }
 
     setIsUpdatingResult(true);
     try {
-      const result = await client.models.MatchResult.update({
+      const result = await updateMatchResultRecord({
         resultId: editingResultId,
-        loserUserId: loserProfile.userId,
+        loserUserId,
         point: editingPoint,
         isJbsRated: editingIsJbsRated,
       });
