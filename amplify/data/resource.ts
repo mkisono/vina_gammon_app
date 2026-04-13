@@ -1,17 +1,66 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 
-/*== STEP 1 ===============================================================
-The section below creates a Todo database table with a "content" field. Try
-adding a new "isDone" field as a boolean. The authorization rule below
-specifies that any user authenticated via an API key can "create", "read",
-"update", and "delete" any "Todo" records.
-=========================================================================*/
+/**
+ * Graphics Schema based on SPEC.md data models
+ * Models: Event, PublicProfile, PrivateProfile, MatchResult
+ * Authorization: Cognito groups (ADMIN) + owner rules
+ */
 const schema = a.schema({
-  Todo: a
+  Event: a
     .model({
-      content: a.string(),
+      eventId: a.id().required(),
+      name: a.string().required(),
+      eventDate: a.date().required(),
+      status: a.enum(["open", "close", "hide"]),
     })
-    .authorization((allow) => [allow.publicApiKey()]),
+    .identifier(["eventId"])
+    .authorization((allow) => [
+      allow.authenticated().to(["read"]),
+      allow.group("ADMIN").to(["create", "update", "delete"]),
+    ]),
+
+  PublicProfile: a
+    .model({
+      userId: a.id().required(),
+      nickname: a.string().required(),
+    })
+    .identifier(["userId"])
+    .authorization((allow) => [
+      allow.authenticated().to(["create", "read"]),
+      allow.ownerDefinedIn("userId").to(["update"]),
+      allow.group("ADMIN").to(["read", "update", "delete"]),
+    ]),
+
+  PrivateProfile: a
+    .model({
+      userId: a.id().required(),
+      realName: a.string().required(),
+    })
+    .identifier(["userId"])
+    .authorization((allow) => [
+      allow.authenticated().to(["create"]),
+      allow.ownerDefinedIn("userId").to(["read", "update"]),
+      allow.group("ADMIN").to(["read", "update", "delete"]),
+    ]),
+
+  MatchResult: a
+    .model({
+      resultId: a.id().required(),
+      eventId: a.id().required(),
+      playerUserId: a.id().required(),
+      loserUserId: a.id().required(),
+      matchDate: a.date().required(),
+      matchTime: a.time().required(),
+      point: a.integer().required(), // 1-25 odd number
+      isJbsRated: a.boolean().required(),
+      createdByUserId: a.id().required(),
+    })
+    .identifier(["resultId"])
+    .authorization((allow) => [
+      allow.authenticated().to(["read", "create"]),
+      allow.ownerDefinedIn("createdByUserId").to(["update"]),
+      allow.group("ADMIN").to(["update", "delete"]),
+    ]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
@@ -19,39 +68,6 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: "apiKey",
-    // API Key is used for a.allow.public() rules
-    apiKeyAuthorizationMode: {
-      expiresInDays: 30,
-    },
+    defaultAuthorizationMode: "userPool",
   },
 });
-
-/*== STEP 2 ===============================================================
-Go to your frontend source code. From your client-side code, generate a
-Data client to make CRUDL requests to your table. (THIS SNIPPET WILL ONLY
-WORK IN THE FRONTEND CODE FILE.)
-
-Using JavaScript or Next.js React Server Components, Middleware, Server 
-Actions or Pages Router? Review how to generate Data clients for those use
-cases: https://docs.amplify.aws/gen2/build-a-backend/data/connect-to-API/
-=========================================================================*/
-
-/*
-"use client"
-import { generateClient } from "aws-amplify/data";
-import type { Schema } from "@/amplify/data/resource";
-
-const client = generateClient<Schema>() // use this Data client for CRUDL requests
-*/
-
-/*== STEP 3 ===============================================================
-Fetch records from the database and use them in your frontend component.
-(THIS SNIPPET WILL ONLY WORK IN THE FRONTEND CODE FILE.)
-=========================================================================*/
-
-/* For example, in a React component, you can use this snippet in your
-  function's RETURN statement */
-// const { data: todos } = await client.models.Todo.list()
-
-// return <ul>{todos.map(todo => <li key={todo.id}>{todo.content}</li>)}</ul>
