@@ -12,6 +12,11 @@ const backend = defineBackend({
   updateFiscalYearLeaderboard,
 });
 
+const { amplifyDynamoDbTables } = backend.data.resources.cfnResources;
+for (const table of Object.values(amplifyDynamoDbTables)) {
+  table.pointInTimeRecoveryEnabled = true;
+}
+
 // --- DynamoDB table references ---
 const matchResultTable = backend.data.resources.tables['MatchResult'];
 const eventTable = backend.data.resources.tables['Event'];
