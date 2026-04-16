@@ -14,24 +14,27 @@ type UseEventsReturn = {
   events: Array<Schema["Event"]["type"]>;
   sortedEvents: Array<Schema["Event"]["type"]>;
   eventMap: Map<string, Schema["Event"]["type"]>;
-  eventStatusById: Map<string, "open" | "close" | "hide">;
+  eventIsTestById: Map<string, boolean>;
   eventName: string;
   eventDate: string;
-  eventStatus: "open" | "close" | "hide";
+  eventStatus: "open" | "close";
+  eventIsTest: boolean;
   isSubmitting: boolean;
   isUpdatingStatus: boolean;
   setEventName: (value: string) => void;
   setEventDate: (value: string) => void;
-  setEventStatus: (value: "open" | "close" | "hide") => void;
+  setEventStatus: (value: "open" | "close") => void;
+  setEventIsTest: (value: boolean) => void;
   createEvent: () => Promise<void>;
-  updateEventStatus: (eventId: string, status: "open" | "close" | "hide") => Promise<void>;
+  updateEventStatus: (eventId: string, status: "open" | "close") => Promise<void>;
 };
 
 export function useEvents(enabled = true): UseEventsReturn {
   const [events, setEvents] = useState<Array<Schema["Event"]["type"]>>([]);
   const [eventName, setEventName] = useState("");
   const [eventDate, setEventDate] = useState("");
-  const [eventStatus, setEventStatus] = useState<"open" | "close" | "hide">("open");
+  const [eventStatus, setEventStatus] = useState<"open" | "close">("open");
+  const [eventIsTest, setEventIsTest] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
@@ -49,7 +52,6 @@ export function useEvents(enabled = true): UseEventsReturn {
   const sortedEvents = useMemo(
     () =>
       [...events]
-        .filter((event) => (event.status ?? "open") !== "hide")
         .sort((a, b) => (a.eventDate ?? "").localeCompare(b.eventDate ?? "")),
     [events]
   );
@@ -62,10 +64,10 @@ export function useEvents(enabled = true): UseEventsReturn {
     return map;
   }, [events]);
 
-  const eventStatusById = useMemo(() => {
-    const map = new Map<string, "open" | "close" | "hide">();
+  const eventIsTestById = useMemo(() => {
+    const map = new Map<string, boolean>();
     for (const event of events) {
-      map.set(event.eventId, (event.status ?? "open") as "open" | "close" | "hide");
+      map.set(event.eventId, Boolean(event.isTest));
     }
     return map;
   }, [events]);
@@ -82,6 +84,7 @@ export function useEvents(enabled = true): UseEventsReturn {
         name: eventName,
         eventDate,
         status: eventStatus,
+        isTest: eventIsTest,
       });
       if (result.errors?.length) {
         window.alert(`イベント作成に失敗しました: ${result.errors[0].message}`);
@@ -90,12 +93,13 @@ export function useEvents(enabled = true): UseEventsReturn {
       setEventName("");
       setEventDate("");
       setEventStatus("open");
+      setEventIsTest(false);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const updateEventStatus = async (eventId: string, status: "open" | "close" | "hide") => {
+  const updateEventStatus = async (eventId: string, status: "open" | "close") => {
     if (!eventId) {
       return;
     }
@@ -117,15 +121,17 @@ export function useEvents(enabled = true): UseEventsReturn {
     events,
     sortedEvents,
     eventMap,
-    eventStatusById,
+    eventIsTestById,
     eventName,
     eventDate,
     eventStatus,
+    eventIsTest,
     isSubmitting,
     isUpdatingStatus,
     setEventName,
     setEventDate,
     setEventStatus,
+    setEventIsTest,
     createEvent,
     updateEventStatus,
   };

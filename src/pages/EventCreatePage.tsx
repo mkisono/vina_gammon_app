@@ -17,10 +17,12 @@ export function EventCreatePage({ signOut }: EventCreatePageProps) {
     eventName,
     eventDate,
     eventStatus,
+    eventIsTest,
     isSubmitting,
     setEventName,
     setEventDate,
     setEventStatus,
+    setEventIsTest,
     createEvent,
   } = useEvents(!isLoading && Boolean(userId));
 
@@ -69,13 +71,22 @@ export function EventCreatePage({ signOut }: EventCreatePageProps) {
               <Text>公開設定</Text>
               <select
                 value={eventStatus}
-                onChange={(e) => setEventStatus(e.target.value as "open" | "close" | "hide")}
+                onChange={(e) => setEventStatus(e.target.value as "open" | "close")}
                 aria-label="イベント状態"
               >
                 <option value="open">公開中（登録可能）</option>
                 <option value="close">終了（閲覧のみ）</option>
-                <option value="hide">非表示（一覧/集計対象外）</option>
               </select>
+            </View>
+            <View marginTop="0.75rem">
+              <label style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+                <input
+                  type="checkbox"
+                  checked={eventIsTest}
+                  onChange={(e) => setEventIsTest(e.target.checked)}
+                />
+                テストイベントとして作成する（ランキング集計対象外）
+              </label>
             </View>
             <Button marginTop="0.9rem" onClick={handleCreate} isLoading={isSubmitting}>
               イベントを作成

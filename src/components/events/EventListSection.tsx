@@ -5,7 +5,7 @@ type EventListSectionProps = {
   events: Array<Schema["Event"]["type"]>;
   isAdmin: boolean;
   isUpdatingStatus: boolean;
-  onChangeEventStatus: (eventId: string, status: "open" | "close" | "hide") => void;
+  onChangeEventStatus: (eventId: string, status: "open" | "close") => void;
   onOpenEventPage: (eventId: string) => void;
 };
 
@@ -16,12 +16,9 @@ export function EventListSection({
   onChangeEventStatus,
   onOpenEventPage,
 }: EventListSectionProps) {
-  const getStatusLabel = (status: "open" | "close" | "hide" | null | undefined): string => {
+  const getStatusLabel = (status: "open" | "close" | null | undefined): string => {
     if (status === "close") {
       return "終了";
-    }
-    if (status === "hide") {
-      return "非表示";
     }
     return "公開中";
   };
@@ -36,7 +33,8 @@ export function EventListSection({
           {events.map((event) => (
             <li key={event.eventId} style={{ marginBottom: "0.5rem" }}>
               {event.eventDate} - {event.name}
-              {isAdmin && ` [${getStatusLabel(event.status as "open" | "close" | "hide" | undefined)}]`}
+              {isAdmin && ` [${getStatusLabel(event.status as "open" | "close" | undefined)}]`}
+              {event.isTest && " [テスト]"}
               <Button size="small" marginLeft="0.5rem" onClick={() => onOpenEventPage(event.eventId)}>
                 イベントページを開く
               </Button>
@@ -49,14 +47,13 @@ export function EventListSection({
                     onChange={(e) =>
                       onChangeEventStatus(
                         event.eventId,
-                        e.target.value as "open" | "close" | "hide"
+                        e.target.value as "open" | "close"
                       )
                     }
                     disabled={isUpdatingStatus}
                   >
                     <option value="open">公開中</option>
                     <option value="close">終了</option>
-                    <option value="hide">非表示</option>
                   </select>
                 </>
               )}

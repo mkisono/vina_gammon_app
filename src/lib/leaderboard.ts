@@ -13,7 +13,7 @@ export type LeaderboardRow = {
 type BuildLeaderboardParams = {
   results: Array<Schema["MatchResult"]["type"]>;
   profiles: Array<Schema["PublicProfile"]["type"]>;
-  eventStatusById?: Map<string, "open" | "close" | "hide">;
+  eventIsTestById?: Map<string, boolean>;
   scope: LeaderboardScope;
   eventId?: string;
   fiscalYearStartYear?: number;
@@ -37,7 +37,7 @@ const isInFiscalYear = (matchDate: string | null | undefined, fiscalYearStartYea
 const filterByScope = (
   result: Schema["MatchResult"]["type"],
   scope: LeaderboardScope,
-  eventStatusById?: Map<string, "open" | "close" | "hide">,
+  eventIsTestById?: Map<string, boolean>,
   eventId?: string,
   fiscalYearStartYear?: number
 ): boolean => {
@@ -45,10 +45,10 @@ const filterByScope = (
     return !!eventId && result.eventId === eventId;
   }
 
-  // 年間/All time 集計では hide イベントを対象外とする。
-  if ((scope === "FISCAL_YEAR" || scope === "ALL_TIME") && eventStatusById) {
-    const status = eventStatusById.get(result.eventId ?? "") ?? "open";
-    if (status === "hide") {
+  // 年間/All time 集計ではテストイベントを対象外とする。
+  if ((scope === "FISCAL_YEAR" || scope === "ALL_TIME") && eventIsTestById) {
+    const isTest = eventIsTestById.get(result.eventId ?? "") ?? false;
+    if (isTest) {
       return false;
     }
   }
@@ -66,7 +66,7 @@ const filterByScope = (
 export const buildLeaderboard = ({
   results,
   profiles,
-  eventStatusById,
+  eventIsTestById,
   scope,
   eventId,
   fiscalYearStartYear,
@@ -90,7 +90,7 @@ export const buildLeaderboard = ({
   };
 
   for (const result of results) {
-    if (!filterByScope(result, scope, eventStatusById, eventId, fiscalYearStartYear)) {
+    if (!filterByScope(result, scope, eventIsTestById, eventId, fiscalYearStartYear)) {
       continue;
     }
 
