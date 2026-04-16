@@ -469,16 +469,23 @@ h2.amplify-heading {
 .leaderboard-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
+  min-width: 34rem;
 }
 
-/* 順位:4rem ニックネーム:auto 合計ポイント:7rem 通算ポイント数:7rem */
+/* 順位:固定 / ニックネーム:可変 / 勝ち・負け:固定 / 合計・通算ポイント:固定 */
 .leaderboard-table th:nth-child(1),
-.leaderboard-table td:nth-child(1) { width: 4rem; text-align: right; }
+.leaderboard-table td:nth-child(1) { width: 3.5rem; text-align: right; }
+.leaderboard-table th:nth-child(2),
+.leaderboard-table td:nth-child(2) { min-width: 7rem; }
 .leaderboard-table th:nth-child(3),
-.leaderboard-table td:nth-child(3) { width: 7rem; text-align: right; }
+.leaderboard-table td:nth-child(3) { width: 4.2rem; text-align: center; }
 .leaderboard-table th:nth-child(4),
-.leaderboard-table td:nth-child(4) { width: 8rem; text-align: right; }
+.leaderboard-table td:nth-child(4) { width: 4.2rem; text-align: center; }
+.leaderboard-table th:nth-child(5),
+.leaderboard-table td:nth-child(5) { width: 6rem; text-align: right; }
+.leaderboard-table th:nth-child(6),
+.leaderboard-table td:nth-child(6) { width: 7rem; text-align: right; }
 
 .leaderboard-table th,
 .leaderboard-table td {
@@ -576,10 +583,20 @@ a {
     font-size: 0.84rem;
   }
 
+  .leaderboard-table {
+    min-width: 30rem;
+  }
+
   .leaderboard-table th:nth-child(1),
-  .leaderboard-table td:nth-child(1) { width: 3rem; }
+  .leaderboard-table td:nth-child(1) { width: 2.6rem; }
+  .leaderboard-table th:nth-child(2),
+  .leaderboard-table td:nth-child(2) { min-width: 6rem; }
   .leaderboard-table th:nth-child(3),
-  .leaderboard-table td:nth-child(3) { width: 6rem; }
+  .leaderboard-table td:nth-child(3) { width: 3.2rem; }
   .leaderboard-table th:nth-child(4),
-  .leaderboard-table td:nth-child(4) { width: 7rem; }
+  .leaderboard-table td:nth-child(4) { width: 3.2rem; }
+  .leaderboard-table th:nth-child(5),
+  .leaderboard-table td:nth-child(5) { width: 4.5rem; }
+  .leaderboard-table th:nth-child(6),
+  .leaderboard-table td:nth-child(6) { width: 5.3rem; }
 }

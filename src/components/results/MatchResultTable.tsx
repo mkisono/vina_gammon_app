@@ -5,6 +5,8 @@ type MatchResultTableProps = {
   filteredResults: Array<Schema["MatchResult"]["type"]>;
   isAdmin: boolean;
   currentUserId?: string;
+  winCount: number;
+  lossCount: number;
   profileNicknameByUserId: Record<string, string>;
   editingResultId: string;
   isDeletingResult: boolean;
@@ -16,6 +18,8 @@ export function MatchResultTable({
   filteredResults,
   isAdmin,
   currentUserId,
+  winCount,
+  lossCount,
   profileNicknameByUserId,
   editingResultId,
   isDeletingResult,
@@ -25,6 +29,9 @@ export function MatchResultTable({
   return (
     <View marginTop="1.25rem">
       <Heading level={5}>試合結果一覧</Heading>
+      <Text marginTop="0.35rem" fontWeight={600}>
+        {`${winCount}勝 ${lossCount}敗`}
+      </Text>
       {filteredResults.length === 0 ? (
         <Text marginTop="0.75rem">このイベントの試合結果はまだありません。</Text>
       ) : (

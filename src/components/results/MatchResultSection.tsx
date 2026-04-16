@@ -79,6 +79,12 @@ export function MatchResultSection({
   const editingWinnerDisplayName = editingResult
     ? profileNicknameByUserId[editingResult.playerUserId ?? ""] ?? editingResult.playerUserId ?? "—"
     : "—";
+  const winCount = currentUserId
+    ? filteredResults.filter((result) => result.playerUserId === currentUserId).length
+    : 0;
+  const lossCount = currentUserId
+    ? filteredResults.filter((result) => result.loserUserId === currentUserId).length
+    : 0;
 
   return (
     <View marginTop="1.5rem">
@@ -116,6 +122,8 @@ export function MatchResultSection({
             filteredResults={filteredResults}
             isAdmin={isAdmin}
             currentUserId={currentUserId}
+            winCount={winCount}
+            lossCount={lossCount}
             profileNicknameByUserId={profileNicknameByUserId}
             editingResultId={editingResultId}
             isDeletingResult={isDeletingResult}

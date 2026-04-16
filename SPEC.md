@@ -54,7 +54,7 @@
   - `PrivateProfile`: 作成は認証済みユーザー、読み取り・更新は本人または管理者のみ
   - `MatchResult`: 読み取り・作成は認証済みユーザー、更新は作成者本人または管理者のみ
   - `FiscalYearLeaderboard`: 読み取りは認証済みユーザー、更新は集計Lambdaまたは管理者のみ
-  - `EventUserContribution`: 読み取り・更新は集計Lambdaまたは管理者のみ
+  - `EventUserContribution`: 作成・読み取り・更新・削除は集計Lambdaまたは管理者のみ
 - field-level の認可は原則として持たず、モデル単位で操作権限を管理する
 - 一般ユーザーが更新可能なプロフィール項目は、`PublicProfile.nickname` と `PrivateProfile.realName` のみとする
 
@@ -103,6 +103,7 @@
   - 試合結果の登録・編集
   - 当該イベントの登録済み試合結果を集計したランキング表示
 - イベントページでは、当該イベントの登録済み試合結果をその時点で集計し、ランキングを表示する
+  - 表示指標として、勝ち数・負け数を表示する
   - 表示指標は合計ポイント(勝者は加点、敗者は同ポイントを減点)
   - 補助指標として、通算ポイント数(勝敗に関係なく対戦した試合ポイントの合計)を表示する
   - 表示順はポイント合計の降順、同率の場合はニックネームの TypeScript(JavaScript) 文字列ソート順による昇順
@@ -154,6 +155,8 @@
   - 一般ユーザーには削除機能を表示しない
   - 削除前に確認ダイアログを表示する
 - イベントページの試合結果一覧は、以下のカラムで表示する
+  - 見出し「試合結果一覧」とテーブルの間に、ログイン中ユーザー基準の勝敗サマリーを表示する
+    - 表示形式は `X勝 Y敗` とする(例: `1勝 0敗`, `3勝 2敗`)
   - 時刻
   - 勝ち(勝者ニックネーム)
   - 負け(敗者ニックネーム)
@@ -172,6 +175,9 @@
   - All time
 - 現行UIで表示しているのはイベント単位と年度単位で、All time は集計ロジックの対応範囲として扱う
 - イベントページのランキング表示は「イベント(1日)」集計を利用し、対象イベントの登録済み試合結果のみを集計対象とする
+- ランキングテーブルは、勝ち数・負け数を別カラムで表示する
+  - 勝ち: 集計対象内でそのユーザーが勝者だった試合数
+  - 負け: 集計対象内でそのユーザーが敗者だった試合数
 - 表示指標は合計ポイント(勝者は加点、敗者は同ポイントを減点)とする
 - 総ポイント数は、勝敗に関係なく、そのユーザーが対戦した試合のポイント合計とする
 - 集計対象はすべての試合結果とし、`isJbsRated` が `false` の試合も含める
@@ -206,6 +212,8 @@
 - 集計ルール
   - 勝者: `totalPoint += point`, `totalPlayedPoint += point`
   - 敗者: `totalPoint -= point`, `totalPlayedPoint += point`
+  - 勝者: `winCount += 1`
+  - 敗者: `lossCount += 1`
   - `isTest = true` のイベントは集計に反映しない
 - 変更時差分
   - `MatchResult.MODIFY`: old を減算してから new を加算
@@ -216,13 +224,17 @@
   - `eventId` から `Event` を参照し、`isTest = true` の場合は処理を終了する
   - `matchDate` から年度開始年(`fiscalYear`)を計算する
   - `EventUserContribution` を2ユーザー分更新する
-    - 勝者: `pointDelta += point`, `playedPointDelta += point`
-    - 敗者: `pointDelta -= point`, `playedPointDelta += point`
+    - 勝者: `pointDelta += point`, `playedPointDelta += point`, `winCountDelta += 1`
+    - 敗者: `pointDelta -= point`, `playedPointDelta += point`, `lossCountDelta += 1`
   - `FiscalYearLeaderboard` を同じ差分で更新する
+    - 勝者: `winCount += 1`
+    - 敗者: `lossCount += 1`
 
 2. `MatchResult.REMOVE`
   - `OldImage` を入力として INSERT の逆演算を行う
   - `EventUserContribution` と `FiscalYearLeaderboard` の双方で差分を打ち消す
+    - 勝者: `winCount -= 1`
+    - 敗者: `lossCount -= 1`
 
 3. `MatchResult.MODIFY`
   - `OldImage` に対して REMOVE 相当の逆演算を適用する
@@ -288,6 +300,8 @@
   - `userId` (string, SK): ユーザーID
   - `totalPoint` (number, required): 勝敗差し引き後の合計ポイント
   - `totalPlayedPoint` (number, required): 勝敗に関係なく対戦したポイント合計
+  - `winCount` (number): 集計対象内での勝ち数
+  - `lossCount` (number): 集計対象内での負け数
 
 #### EventUserContribution
 
@@ -298,6 +312,8 @@
   - `fiscalYear` (number, required): 当該寄与が属する年度
   - `pointDelta` (number, required): 当該イベントでの勝敗差分
   - `playedPointDelta` (number, required): 当該イベントでの通算ポイント差分
+  - `winCountDelta` (number, required): 当該イベントでの勝ち試合数差分
+  - `lossCountDelta` (number, required): 当該イベントでの負け試合数差分
 
 #### 制約・インデックス方針
 
