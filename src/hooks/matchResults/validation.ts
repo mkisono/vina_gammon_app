@@ -1,5 +1,7 @@
 import type { Schema } from "../../../amplify/data/resource";
 
+export const JBS_MIN_POINT = 5;
+
 type CreateInputValidationParams = {
   eventId: string;
   event: Schema["Event"]["type"] | null | undefined;
@@ -7,6 +9,7 @@ type CreateInputValidationParams = {
   opponentNickname: string;
   opponentNicknameOptions: string[];
   point: number;
+  isJbsRated: boolean;
 };
 
 type UpdateInputValidationParams = {
@@ -14,12 +17,20 @@ type UpdateInputValidationParams = {
   editingOpponentNickname: string;
   opponentNicknameOptions: string[];
   editingPoint: number;
+  editingIsJbsRated: boolean;
   updaterUserId: string;
   hasEditingResult: boolean;
 };
 
 export const isValidPoint = (value: number): boolean => {
   return Number.isInteger(value) && value >= 1 && value <= 25 && value % 2 === 1;
+};
+
+export const validateJbsRatingConstraint = (point: number, isJbsRated: boolean): string | null => {
+  if (isJbsRated && point < JBS_MIN_POINT) {
+    return `JBSレーティング対象にするには、ポイント数を ${JBS_MIN_POINT} 以上にしてください。`;
+  }
+  return null;
 };
 
 export const validateCreateInput = ({
@@ -29,6 +40,7 @@ export const validateCreateInput = ({
   opponentNickname,
   opponentNicknameOptions,
   point,
+  isJbsRated,
 }: CreateInputValidationParams): string | null => {
   if (!eventId || !event) {
     return "イベントページから登録してください。";
@@ -48,6 +60,10 @@ export const validateCreateInput = ({
   if (!isValidPoint(point)) {
     return "ポイントは 1-25 の奇数で入力してください。";
   }
+  const jbsError = validateJbsRatingConstraint(point, isJbsRated);
+  if (jbsError) {
+    return jbsError;
+  }
   return null;
 };
 
@@ -56,6 +72,7 @@ export const validateUpdateInput = ({
   editingOpponentNickname,
   opponentNicknameOptions,
   editingPoint,
+  editingIsJbsRated,
   updaterUserId,
   hasEditingResult,
 }: UpdateInputValidationParams): string | null => {
@@ -73,6 +90,10 @@ export const validateUpdateInput = ({
   }
   if (!isValidPoint(editingPoint)) {
     return "ポイントは 1-25 の奇数で入力してください。";
+  }
+  const jbsError = validateJbsRatingConstraint(editingPoint, editingIsJbsRated);
+  if (jbsError) {
+    return jbsError;
   }
   if (!updaterUserId) {
     return "ユーザー情報を取得できません。再ログインしてください。";
