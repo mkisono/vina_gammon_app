@@ -105,7 +105,9 @@ const updateEventUserContribution = async (
   userId: string,
   fiscalYear: number,
   pointDelta: number,
-  playedPointDelta: number
+  playedPointDelta: number,
+  winCountDelta: number,
+  lossCountDelta: number
 ) => {
   const now = new Date().toISOString();
   await ddb.send(
@@ -116,13 +118,15 @@ const updateEventUserContribution = async (
         userId: { S: userId },
       },
       UpdateExpression:
-        "SET fiscalYear = :fiscalYear, createdAt = if_not_exists(createdAt, :createdAt), updatedAt = :updatedAt ADD pointDelta :pointDelta, playedPointDelta :playedPointDelta",
+        "SET fiscalYear = :fiscalYear, createdAt = if_not_exists(createdAt, :createdAt), updatedAt = :updatedAt ADD pointDelta :pointDelta, playedPointDelta :playedPointDelta, winCountDelta :winCountDelta, lossCountDelta :lossCountDelta",
       ExpressionAttributeValues: {
         ":fiscalYear": { N: String(fiscalYear) },
         ":createdAt": { S: now },
         ":updatedAt": { S: now },
         ":pointDelta": { N: String(pointDelta) },
         ":playedPointDelta": { N: String(playedPointDelta) },
+        ":winCountDelta": { N: String(winCountDelta) },
+        ":lossCountDelta": { N: String(lossCountDelta) },
       },
     })
   );
@@ -132,7 +136,9 @@ const updateFiscalYearLeaderboard = async (
   fiscalYear: number,
   userId: string,
   totalPointDelta: number,
-  totalPlayedPointDelta: number
+  totalPlayedPointDelta: number,
+  winCountDelta: number,
+  lossCountDelta: number
 ) => {
   const now = new Date().toISOString();
   await ddb.send(
@@ -143,12 +149,14 @@ const updateFiscalYearLeaderboard = async (
         userId: { S: userId },
       },
       UpdateExpression:
-        "SET createdAt = if_not_exists(createdAt, :createdAt), updatedAt = :updatedAt ADD totalPoint :totalPointDelta, totalPlayedPoint :totalPlayedPointDelta",
+        "SET createdAt = if_not_exists(createdAt, :createdAt), updatedAt = :updatedAt ADD totalPoint :totalPointDelta, totalPlayedPoint :totalPlayedPointDelta, winCount :winCountDelta, lossCount :lossCountDelta",
       ExpressionAttributeValues: {
         ":createdAt": { S: now },
         ":updatedAt": { S: now },
         ":totalPointDelta": { N: String(totalPointDelta) },
         ":totalPlayedPointDelta": { N: String(totalPlayedPointDelta) },
+        ":winCountDelta": { N: String(winCountDelta) },
+        ":lossCountDelta": { N: String(lossCountDelta) },
       },
     })
   );
@@ -165,25 +173,56 @@ const applyResultImageDelta = async (result: ResultImage, sign: 1 | -1): Promise
     return;
   }
 
-  const perUserDelta = new Map<string, { pointDelta: number; playedPointDelta: number }>();
-  const addDelta = (userId: string, pointDelta: number, playedPointDelta: number) => {
-    const current = perUserDelta.get(userId) ?? { pointDelta: 0, playedPointDelta: 0 };
+  const perUserDelta = new Map<
+    string,
+    { pointDelta: number; playedPointDelta: number; winCountDelta: number; lossCountDelta: number }
+  >();
+  const addDelta = (
+    userId: string,
+    pointDelta: number,
+    playedPointDelta: number,
+    winCountDelta: number,
+    lossCountDelta: number
+  ) => {
+    const current = perUserDelta.get(userId) ?? {
+      pointDelta: 0,
+      playedPointDelta: 0,
+      winCountDelta: 0,
+      lossCountDelta: 0,
+    };
     perUserDelta.set(userId, {
       pointDelta: current.pointDelta + pointDelta,
       playedPointDelta: current.playedPointDelta + playedPointDelta,
+      winCountDelta: current.winCountDelta + winCountDelta,
+      lossCountDelta: current.lossCountDelta + lossCountDelta,
     });
   };
 
-  addDelta(result.playerUserId, sign * result.point, sign * result.point);
-  addDelta(result.loserUserId, sign * -result.point, sign * result.point);
+  addDelta(result.playerUserId, sign * result.point, sign * result.point, sign, 0);
+  addDelta(result.loserUserId, sign * -result.point, sign * result.point, 0, sign);
 
   const tasks: Array<Promise<unknown>> = [];
   for (const [userId, delta] of perUserDelta.entries()) {
     tasks.push(
-      updateEventUserContribution(result.eventId, userId, fiscalYear, delta.pointDelta, delta.playedPointDelta)
+      updateEventUserContribution(
+        result.eventId,
+        userId,
+        fiscalYear,
+        delta.pointDelta,
+        delta.playedPointDelta,
+        delta.winCountDelta,
+        delta.lossCountDelta
+      )
     );
     tasks.push(
-      updateFiscalYearLeaderboard(fiscalYear, userId, delta.pointDelta, delta.playedPointDelta)
+      updateFiscalYearLeaderboard(
+        fiscalYear,
+        userId,
+        delta.pointDelta,
+        delta.playedPointDelta,
+        delta.winCountDelta,
+        delta.lossCountDelta
+      )
     );
   }
 

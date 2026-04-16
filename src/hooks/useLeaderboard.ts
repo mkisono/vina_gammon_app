@@ -41,6 +41,8 @@ function buildFiscalYearRows(
     nickname: nicknameById.get(item.userId) ?? item.userId,
     totalPoint: item.totalPoint ?? 0,
     totalPlayedPoint: item.totalPlayedPoint ?? 0,
+    winCount: item.winCount ?? 0,
+    lossCount: item.lossCount ?? 0,
   }));
 }
 

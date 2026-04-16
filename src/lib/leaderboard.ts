@@ -8,6 +8,8 @@ export type LeaderboardRow = {
   nickname: string;
   totalPoint: number;
   totalPlayedPoint: number;
+  winCount: number;
+  lossCount: number;
 };
 
 type BuildLeaderboardParams = {
@@ -76,16 +78,32 @@ export const buildLeaderboard = ({
     profileNicknameByUserId.set(profile.userId, profile.nickname ?? profile.userId);
   }
 
-  const aggregate = new Map<string, { totalPoint: number; totalPlayedPoint: number }>();
+  const aggregate = new Map<
+    string,
+    { totalPoint: number; totalPlayedPoint: number; winCount: number; lossCount: number }
+  >();
 
-  const addResultForUser = (userId: string | null | undefined, deltaPoint: number, playedPoint: number) => {
+  const addResultForUser = (
+    userId: string | null | undefined,
+    deltaPoint: number,
+    playedPoint: number,
+    winDelta: number,
+    lossDelta: number
+  ) => {
     if (!userId) {
       return;
     }
-    const current = aggregate.get(userId) ?? { totalPoint: 0, totalPlayedPoint: 0 };
+    const current = aggregate.get(userId) ?? {
+      totalPoint: 0,
+      totalPlayedPoint: 0,
+      winCount: 0,
+      lossCount: 0,
+    };
     aggregate.set(userId, {
       totalPoint: current.totalPoint + deltaPoint,
       totalPlayedPoint: current.totalPlayedPoint + playedPoint,
+      winCount: current.winCount + winDelta,
+      lossCount: current.lossCount + lossDelta,
     });
   };
 
@@ -100,8 +118,8 @@ export const buildLeaderboard = ({
       continue;
     }
 
-    addResultForUser(result.playerUserId, point, point);
-    addResultForUser(result.loserUserId, -point, point);
+    addResultForUser(result.playerUserId, point, point, 1, 0);
+    addResultForUser(result.loserUserId, -point, point, 0, 1);
   }
 
   const rows = Array.from(aggregate.entries()).map(([userId, values]) => ({
@@ -110,6 +128,8 @@ export const buildLeaderboard = ({
     nickname: profileNicknameByUserId.get(userId) ?? userId,
     totalPoint: values.totalPoint,
     totalPlayedPoint: values.totalPlayedPoint,
+    winCount: values.winCount,
+    lossCount: values.lossCount,
   }));
 
   rows.sort((a, b) => {

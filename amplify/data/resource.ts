@@ -79,6 +79,8 @@ const schema = a.schema({
       userId: a.id().required(),
       totalPoint: a.integer().required(),
       totalPlayedPoint: a.integer().required(),
+      winCount: a.integer(),
+      lossCount: a.integer(),
     })
     .identifier(["fiscalYear", "userId"])
     .authorization((allow) => [
@@ -93,6 +95,8 @@ const schema = a.schema({
       fiscalYear: a.integer().required(),
       pointDelta: a.integer().required(),
       playedPointDelta: a.integer().required(),
+      winCountDelta: a.integer().required(),
+      lossCountDelta: a.integer().required(),
     })
     .identifier(["eventId", "userId"])
     .authorization((allow) => [
