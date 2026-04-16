@@ -27,6 +27,7 @@ export function EventPage({ signOut }: EventPageProps) {
     eventResults,
     filteredResults,
     opponentNicknameOptions,
+    editingOpponentNicknameOptions,
     opponentNickname,
     point,
     isJbsRated,
@@ -36,6 +37,7 @@ export function EventPage({ signOut }: EventPageProps) {
     editingPoint,
     editingIsJbsRated,
     isUpdatingResult,
+    isDeletingResult,
     setOpponentNickname,
     setPoint,
     setIsJbsRated,
@@ -46,6 +48,7 @@ export function EventPage({ signOut }: EventPageProps) {
     startEditResult,
     cancelEditResult,
     updateMatchResult,
+    deleteMatchResult,
   } = useMatchResults(
     profiles,
     currentEventId,
@@ -82,6 +85,13 @@ export function EventPage({ signOut }: EventPageProps) {
     await updateMatchResult(currentUserId);
   };
 
+  const handleDeleteMatchResult = async (resultId: string) => {
+    if (!isAdmin) return;
+    const shouldDelete = window.confirm("この試合結果を削除します。よろしいですか？");
+    if (!shouldDelete) return;
+    await deleteMatchResult(resultId);
+  };
+
   const profileNicknameByUserId = useMemo(() => {
     const map: Record<string, string> = {};
     for (const profile of profiles) {
@@ -114,10 +124,12 @@ export function EventPage({ signOut }: EventPageProps) {
         currentEventId={currentEventId}
         currentEvent={currentEvent}
         filteredResults={filteredResults}
+        isAdmin={isAdmin}
         currentUserId={currentUserId || undefined}
         profileNicknameByUserId={profileNicknameByUserId}
         opponentNickname={opponentNickname}
         opponentNicknameOptions={opponentNicknameOptions}
+        editingOpponentNicknameOptions={editingOpponentNicknameOptions}
         point={point}
         isJbsRated={isJbsRated}
         isResultSubmitting={isResultSubmitting}
@@ -126,6 +138,7 @@ export function EventPage({ signOut }: EventPageProps) {
         editingPoint={editingPoint}
         editingIsJbsRated={editingIsJbsRated}
         isUpdatingResult={isUpdatingResult}
+        isDeletingResult={isDeletingResult}
         onGoToHomePage={handleGoToHome}
         onChangeOpponentNickname={setOpponentNickname}
         onChangePoint={setPoint}
@@ -137,6 +150,7 @@ export function EventPage({ signOut }: EventPageProps) {
         onChangeEditingPoint={setEditingPoint}
         onChangeEditingIsJbsRated={setEditingIsJbsRated}
         onUpdateMatchResult={handleUpdateMatchResult}
+        onDeleteMatchResult={handleDeleteMatchResult}
       />
 
       <LeaderboardSection title="ランキング" rows={eventLeaderboardRows} />

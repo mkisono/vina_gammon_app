@@ -8,10 +8,12 @@ type MatchResultSectionProps = {
   currentEventId: string;
   currentEvent: Schema["Event"]["type"] | null;
   filteredResults: Array<Schema["MatchResult"]["type"]>;
+  isAdmin: boolean;
   currentUserId?: string;
   profileNicknameByUserId: Record<string, string>;
   opponentNickname: string;
   opponentNicknameOptions: string[];
+  editingOpponentNicknameOptions: string[];
   point: number;
   isJbsRated: boolean;
   isResultSubmitting: boolean;
@@ -20,6 +22,7 @@ type MatchResultSectionProps = {
   editingPoint: number;
   editingIsJbsRated: boolean;
   isUpdatingResult: boolean;
+  isDeletingResult: boolean;
   onGoToHomePage: () => void;
   onChangeOpponentNickname: (value: string) => void;
   onChangePoint: (value: number) => void;
@@ -31,16 +34,19 @@ type MatchResultSectionProps = {
   onChangeEditingPoint: (value: number) => void;
   onChangeEditingIsJbsRated: (value: boolean) => void;
   onUpdateMatchResult: () => void;
+  onDeleteMatchResult: (resultId: string) => void;
 };
 
 export function MatchResultSection({
   currentEventId,
   currentEvent,
   filteredResults,
+  isAdmin,
   currentUserId,
   profileNicknameByUserId,
   opponentNickname,
   opponentNicknameOptions,
+  editingOpponentNicknameOptions,
   point,
   isJbsRated,
   isResultSubmitting,
@@ -49,6 +55,7 @@ export function MatchResultSection({
   editingPoint,
   editingIsJbsRated,
   isUpdatingResult,
+  isDeletingResult,
   onGoToHomePage,
   onChangeOpponentNickname,
   onChangePoint,
@@ -60,6 +67,7 @@ export function MatchResultSection({
   onChangeEditingPoint,
   onChangeEditingIsJbsRated,
   onUpdateMatchResult,
+  onDeleteMatchResult,
 }: MatchResultSectionProps) {
   const currentEventStatus = currentEvent?.status ?? "open";
   const canCreateResult = currentEventStatus === "open";
@@ -165,7 +173,8 @@ export function MatchResultSection({
                   <tbody>
                     {filteredResults.map((result) => {
                       const isWinner = result.playerUserId === currentUserId;
-                      const canEdit = isWinner;
+                      const canEdit = isWinner || isAdmin;
+                      const canDelete = isAdmin;
                       const winnerDisplayName =
                         profileNicknameByUserId[result.playerUserId ?? ""] ?? result.playerUserId ?? "—";
                       const loserDisplayName =
@@ -184,10 +193,24 @@ export function MatchResultSection({
                             )}
                           </td>
                           <td>
-                            {canEdit && (
-                              <Button size="small" onClick={() => onStartEditResult(result)}>
-                                {editingResultId === result.resultId ? "編集中" : "編集"}
-                              </Button>
+                            {(canEdit || canDelete) && (
+                              <View className="result-table-actions">
+                                {canEdit && (
+                                  <Button size="small" onClick={() => onStartEditResult(result)}>
+                                    {editingResultId === result.resultId ? "編集中" : "編集"}
+                                  </Button>
+                                )}
+                                {canDelete && (
+                                  <Button
+                                    size="small"
+                                    className="result-delete-button"
+                                    onClick={() => onDeleteMatchResult(result.resultId)}
+                                    isLoading={isDeletingResult}
+                                  >
+                                    削除
+                                  </Button>
+                                )}
+                              </View>
                             )}
                           </td>
                         </tr>
@@ -220,7 +243,7 @@ export function MatchResultSection({
                   <SearchableCombobox
                     value={editingOpponentNickname}
                     onChange={onChangeEditingOpponentNickname}
-                    options={opponentNicknameOptions}
+                    options={editingOpponentNicknameOptions}
                     placeholder="対戦相手ニックネームを検索"
                     inputClassName="result-field-input"
                     aria-label="対戦相手ニックネーム"

@@ -12,6 +12,7 @@ import { useMatchResultEditState } from "./matchResults/useMatchResultEditState"
 import {
   createMatchResultRecord,
   updateMatchResultRecord,
+  deleteMatchResultRecord,
 } from "./matchResults/matchResultService";
 import {
   validateCreateInput,
@@ -43,6 +44,7 @@ type UseMatchResultsReturn = {
   eventResults: Array<Schema["MatchResult"]["type"]>;
   filteredResults: Array<Schema["MatchResult"]["type"]>;
   opponentNicknameOptions: string[];
+  editingOpponentNicknameOptions: string[];
   opponentNickname: string;
   point: number;
   isJbsRated: boolean;
@@ -58,6 +60,7 @@ type UseMatchResultsReturn = {
   setEditingOpponentNickname: (value: string) => void;
   setEditingPoint: (value: number) => void;
   setEditingIsJbsRated: (value: boolean) => void;
+  isDeletingResult: boolean;
   createMatchResult: (
     eventId: string,
     event: Schema["Event"]["type"],
@@ -66,6 +69,7 @@ type UseMatchResultsReturn = {
   startEditResult: (result: Schema["MatchResult"]["type"]) => void;
   cancelEditResult: () => void;
   updateMatchResult: (updaterUserId: string) => Promise<void>;
+  deleteMatchResult: (resultId: string) => Promise<void>;
 };
 
 export function useMatchResults(
@@ -98,10 +102,18 @@ export function useMatchResults(
   } = useMatchResultEditState(1);
   const [isResultSubmitting, setIsResultSubmitting] = useState(false);
   const [isUpdatingResult, setIsUpdatingResult] = useState(false);
+  const [isDeletingResult, setIsDeletingResult] = useState(false);
 
   const opponentNicknameOptions = useMemo(() => {
     return buildOpponentNicknameOptions(profiles, currentUserId);
   }, [profiles, currentUserId]);
+
+  const editingOpponentNicknameOptions = useMemo(() => {
+    const nicknames = profiles
+      .map((profile) => (profile.nickname ?? "").trim())
+      .filter((name) => name.length > 0);
+    return [...new Set(nicknames)].sort((a, b) => a.localeCompare(b));
+  }, [profiles]);
 
   const eventResults = useMemo(() => {
     return buildEventResults(results, currentEventId);
@@ -177,7 +189,7 @@ export function useMatchResults(
     const updateValidationError = validateUpdateInput({
       editingResultId,
       editingOpponentNickname,
-      opponentNicknameOptions,
+      opponentNicknameOptions: editingOpponentNicknameOptions,
       editingPoint,
       updaterUserId,
       hasEditingResult: Boolean(editingResult?.playerUserId),
@@ -215,11 +227,24 @@ export function useMatchResults(
     }
   };
 
+  const deleteMatchResult = async (resultId: string) => {
+    setIsDeletingResult(true);
+    try {
+      const result = await deleteMatchResultRecord(resultId);
+      if (result.errors?.length) {
+        window.alert(`試合結果の削除に失敗しました: ${result.errors[0].message}`);
+      }
+    } finally {
+      setIsDeletingResult(false);
+    }
+  };
+
   return {
     results,
     eventResults,
     filteredResults,
     opponentNicknameOptions,
+    editingOpponentNicknameOptions,
     opponentNickname,
     point,
     isJbsRated,
@@ -229,6 +254,7 @@ export function useMatchResults(
     editingPoint,
     editingIsJbsRated,
     isUpdatingResult,
+    isDeletingResult,
     setOpponentNickname,
     setPoint,
     setIsJbsRated,
@@ -239,5 +265,6 @@ export function useMatchResults(
     startEditResult,
     cancelEditResult,
     updateMatchResult,
+    deleteMatchResult,
   };
 }
