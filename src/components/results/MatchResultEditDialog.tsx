@@ -2,6 +2,7 @@ import { Button, Heading, Text, View } from "@aws-amplify/ui-react";
 import type { Schema } from "../../../amplify/data/resource";
 import { SearchableCombobox } from "./SearchableCombobox";
 import { POINT_OPTIONS } from "./matchResultConstants";
+import { JBS_MIN_POINT } from "../../hooks/matchResults/validation";
 
 type MatchResultEditDialogProps = {
   editingResult: Schema["MatchResult"]["type"] | null;
@@ -35,6 +36,13 @@ export function MatchResultEditDialog({
   if (!editingResult) {
     return null;
   }
+
+  const handleEditingIsJbsRatedChange = (checked: boolean) => {
+    if (checked && editingPoint < JBS_MIN_POINT) {
+      onChangeEditingPoint(JBS_MIN_POINT);
+    }
+    onChangeEditingIsJbsRated(checked);
+  };
 
   return (
     <View className="result-dialog-overlay" role="presentation" onClick={onCancelEditResult}>
@@ -84,7 +92,7 @@ export function MatchResultEditDialog({
           <input
             type="checkbox"
             checked={editingIsJbsRated}
-            onChange={(e) => onChangeEditingIsJbsRated(e.target.checked)}
+            onChange={(e) => handleEditingIsJbsRatedChange(e.target.checked)}
             className="result-checkbox"
             id="editingIsJbsRated"
           />

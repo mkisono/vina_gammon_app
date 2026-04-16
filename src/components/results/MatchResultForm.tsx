@@ -1,6 +1,7 @@
 import { Button, Text, View } from "@aws-amplify/ui-react";
 import { SearchableCombobox } from "./SearchableCombobox";
 import { POINT_OPTIONS } from "./matchResultConstants";
+import { JBS_MIN_POINT } from "../../hooks/matchResults/validation";
 
 type MatchResultFormProps = {
   canCreateResult: boolean;
@@ -27,6 +28,13 @@ export function MatchResultForm({
   onChangeIsJbsRated,
   onCreateMatchResult,
 }: MatchResultFormProps) {
+  const handleIsJbsRatedChange = (checked: boolean) => {
+    if (checked && point < JBS_MIN_POINT) {
+      onChangePoint(JBS_MIN_POINT);
+    }
+    onChangeIsJbsRated(checked);
+  };
+
   return (
     <View marginTop="0.75rem" className="result-form">
       <View className="result-field-group">
@@ -61,7 +69,7 @@ export function MatchResultForm({
         <input
           type="checkbox"
           checked={isJbsRated}
-          onChange={(e) => onChangeIsJbsRated(e.target.checked)}
+          onChange={(e) => handleIsJbsRatedChange(e.target.checked)}
           className="result-checkbox"
           id="isJbsRated"
           disabled={!canCreateResult}

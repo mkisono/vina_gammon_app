@@ -135,6 +135,7 @@ export function useMatchResults(
       opponentNickname,
       opponentNicknameOptions,
       point,
+      isJbsRated,
     });
     if (createValidationError) {
       window.alert(createValidationError);
@@ -191,6 +192,7 @@ export function useMatchResults(
       editingOpponentNickname,
       opponentNicknameOptions: editingOpponentNicknameOptions,
       editingPoint,
+      editingIsJbsRated,
       updaterUserId,
       hasEditingResult: Boolean(editingResult?.playerUserId),
     });
