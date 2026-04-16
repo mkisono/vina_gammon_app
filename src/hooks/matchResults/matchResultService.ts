@@ -28,3 +28,7 @@ export const createMatchResultRecord = async (input: CreateMatchResultInput) => 
 export const updateMatchResultRecord = async (input: UpdateMatchResultInput) => {
   return client.models.MatchResult.update(input);
 };
+
+export const deleteMatchResultRecord = async (resultId: string) => {
+  return client.models.MatchResult.delete({ resultId });
+};

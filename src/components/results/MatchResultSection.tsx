@@ -1,17 +1,19 @@
 import { Button, Heading, Text, View } from "@aws-amplify/ui-react";
 import type { Schema } from "../../../amplify/data/resource";
-import { SearchableCombobox } from "./SearchableCombobox";
-
-const POINT_OPTIONS = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25];
+import { MatchResultForm } from "./MatchResultForm";
+import { MatchResultTable } from "./MatchResultTable";
+import { MatchResultEditDialog } from "./MatchResultEditDialog";
 
 type MatchResultSectionProps = {
   currentEventId: string;
   currentEvent: Schema["Event"]["type"] | null;
   filteredResults: Array<Schema["MatchResult"]["type"]>;
+  isAdmin: boolean;
   currentUserId?: string;
   profileNicknameByUserId: Record<string, string>;
   opponentNickname: string;
   opponentNicknameOptions: string[];
+  editingOpponentNicknameOptions: string[];
   point: number;
   isJbsRated: boolean;
   isResultSubmitting: boolean;
@@ -20,6 +22,7 @@ type MatchResultSectionProps = {
   editingPoint: number;
   editingIsJbsRated: boolean;
   isUpdatingResult: boolean;
+  isDeletingResult: boolean;
   onGoToHomePage: () => void;
   onChangeOpponentNickname: (value: string) => void;
   onChangePoint: (value: number) => void;
@@ -31,16 +34,19 @@ type MatchResultSectionProps = {
   onChangeEditingPoint: (value: number) => void;
   onChangeEditingIsJbsRated: (value: boolean) => void;
   onUpdateMatchResult: () => void;
+  onDeleteMatchResult: (resultId: string) => void;
 };
 
 export function MatchResultSection({
   currentEventId,
   currentEvent,
   filteredResults,
+  isAdmin,
   currentUserId,
   profileNicknameByUserId,
   opponentNickname,
   opponentNicknameOptions,
+  editingOpponentNicknameOptions,
   point,
   isJbsRated,
   isResultSubmitting,
@@ -49,6 +55,7 @@ export function MatchResultSection({
   editingPoint,
   editingIsJbsRated,
   isUpdatingResult,
+  isDeletingResult,
   onGoToHomePage,
   onChangeOpponentNickname,
   onChangePoint,
@@ -60,6 +67,7 @@ export function MatchResultSection({
   onChangeEditingPoint,
   onChangeEditingIsJbsRated,
   onUpdateMatchResult,
+  onDeleteMatchResult,
 }: MatchResultSectionProps) {
   const currentEventStatus = currentEvent?.status ?? "open";
   const canCreateResult = currentEventStatus === "open";
@@ -92,181 +100,42 @@ export function MatchResultSection({
           {!canCreateResult && (
             <Text marginTop="0.75rem">{registrationClosedMessage}</Text>
           )}
-          <View marginTop="0.75rem" className="result-form">
-            <View className="result-field-group">
-              <Text className="result-field-label">対戦相手</Text>
-              <SearchableCombobox
-                value={opponentNickname}
-                onChange={onChangeOpponentNickname}
-                options={opponentNicknameOptions}
-                placeholder="対戦相手ニックネームを検索して選択してください"
-                inputClassName="result-field-input"
-                disabled={!canCreateResult}
-              />
-            </View>
-
-            <View className="result-field-group">
-              <Text className="result-field-label">ポイント数</Text>
-              <select
-                value={point}
-                onChange={(e) => onChangePoint(Number(e.target.value))}
-                className="result-field-input"
-                disabled={!canCreateResult}
-              >
-                {POINT_OPTIONS.map((pointOption) => (
-                  <option key={pointOption} value={pointOption}>
-                    {pointOption}
-                  </option>
-                ))}
-              </select>
-            </View>
-
-            <View className="result-checkbox-row">
-              <input
-                type="checkbox"
-                checked={isJbsRated}
-                onChange={(e) => onChangeIsJbsRated(e.target.checked)}
-                className="result-checkbox"
-                id="isJbsRated"
-                disabled={!canCreateResult}
-              />
-              <label htmlFor="isJbsRated" className="result-checkbox-label">
-                JBS レーティング対象
-              </label>
-            </View>
-
-            <Button
-              marginTop="0.25rem"
-              onClick={onCreateMatchResult}
-              isLoading={isResultSubmitting}
-              isDisabled={!canCreateResult}
-            >
-              試合結果を登録
-            </Button>
-          </View>
-
-          <View marginTop="1.25rem">
-            <Heading level={5}>試合結果一覧</Heading>
-            {filteredResults.length === 0 ? (
-              <Text marginTop="0.75rem">このイベントの試合結果はまだありません。</Text>
-            ) : (
-              <View className="result-table-wrap" marginTop="0.75rem">
-                <table className="result-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">時刻</th>
-                      <th scope="col">勝ち</th>
-                      <th scope="col">負け</th>
-                      <th scope="col">ポイント</th>
-                      <th scope="col">JBS</th>
-                      <th scope="col">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredResults.map((result) => {
-                      const isWinner = result.playerUserId === currentUserId;
-                      const canEdit = isWinner;
-                      const winnerDisplayName =
-                        profileNicknameByUserId[result.playerUserId ?? ""] ?? result.playerUserId ?? "—";
-                      const loserDisplayName =
-                        profileNicknameByUserId[result.loserUserId ?? ""] ?? result.loserUserId ?? "—";
-                      return (
-                        <tr key={result.resultId}>
-                          <td>{result.matchTime}</td>
-                          <td>{winnerDisplayName}</td>
-                          <td>{loserDisplayName}</td>
-                          <td>{`${result.point}pt`}</td>
-                          <td>
-                            {result.isJbsRated ? (
-                              "対象"
-                            ) : (
-                              "対象外"
-                            )}
-                          </td>
-                          <td>
-                            {canEdit && (
-                              <Button size="small" onClick={() => onStartEditResult(result)}>
-                                {editingResultId === result.resultId ? "編集中" : "編集"}
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </View>
-            )}
-          </View>
-
-          {editingResult && (
-            <View className="result-dialog-overlay" role="presentation" onClick={onCancelEditResult}>
-              <View
-                className="result-dialog"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="result-edit-dialog-title"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <Heading level={5} id="result-edit-dialog-title">
-                  試合結果を編集
-                </Heading>
-                <Text marginTop="0.35rem">
-                  {editingResult.matchTime} / 勝者: {editingWinnerDisplayName}
-                </Text>
-
-                <View marginTop="0.9rem" className="result-field-group">
-                  <Text className="result-field-label">対戦相手</Text>
-                  <SearchableCombobox
-                    value={editingOpponentNickname}
-                    onChange={onChangeEditingOpponentNickname}
-                    options={opponentNicknameOptions}
-                    placeholder="対戦相手ニックネームを検索"
-                    inputClassName="result-field-input"
-                    aria-label="対戦相手ニックネーム"
-                  />
-                </View>
-
-                <View className="result-field-group">
-                  <Text className="result-field-label">ポイント数</Text>
-                  <select
-                    value={editingPoint}
-                    onChange={(e) => onChangeEditingPoint(Number(e.target.value))}
-                    className="result-field-input"
-                    aria-label="ポイント"
-                  >
-                    {POINT_OPTIONS.map((pointOption) => (
-                      <option key={pointOption} value={pointOption}>
-                        {pointOption}
-                      </option>
-                    ))}
-                  </select>
-                </View>
-
-                <View className="result-checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={editingIsJbsRated}
-                    onChange={(e) => onChangeEditingIsJbsRated(e.target.checked)}
-                    className="result-checkbox"
-                    id="editingIsJbsRated"
-                  />
-                  <label htmlFor="editingIsJbsRated" className="result-checkbox-label">
-                    JBS レーティング対象
-                  </label>
-                </View>
-
-                <View className="result-dialog-actions">
-                  <Button onClick={onUpdateMatchResult} isLoading={isUpdatingResult} size="small">
-                    更新
-                  </Button>
-                  <Button variation="link" size="small" onClick={onCancelEditResult}>
-                    キャンセル
-                  </Button>
-                </View>
-              </View>
-            </View>
-          )}
+          <MatchResultForm
+            canCreateResult={canCreateResult}
+            opponentNickname={opponentNickname}
+            opponentNicknameOptions={opponentNicknameOptions}
+            point={point}
+            isJbsRated={isJbsRated}
+            isResultSubmitting={isResultSubmitting}
+            onChangeOpponentNickname={onChangeOpponentNickname}
+            onChangePoint={onChangePoint}
+            onChangeIsJbsRated={onChangeIsJbsRated}
+            onCreateMatchResult={onCreateMatchResult}
+          />
+          <MatchResultTable
+            filteredResults={filteredResults}
+            isAdmin={isAdmin}
+            currentUserId={currentUserId}
+            profileNicknameByUserId={profileNicknameByUserId}
+            editingResultId={editingResultId}
+            isDeletingResult={isDeletingResult}
+            onStartEditResult={onStartEditResult}
+            onDeleteMatchResult={onDeleteMatchResult}
+          />
+          <MatchResultEditDialog
+            editingResult={editingResult}
+            editingWinnerDisplayName={editingWinnerDisplayName}
+            editingOpponentNickname={editingOpponentNickname}
+            editingOpponentNicknameOptions={editingOpponentNicknameOptions}
+            editingPoint={editingPoint}
+            editingIsJbsRated={editingIsJbsRated}
+            isUpdatingResult={isUpdatingResult}
+            onChangeEditingOpponentNickname={onChangeEditingOpponentNickname}
+            onChangeEditingPoint={onChangeEditingPoint}
+            onChangeEditingIsJbsRated={onChangeEditingIsJbsRated}
+            onUpdateMatchResult={onUpdateMatchResult}
+            onCancelEditResult={onCancelEditResult}
+          />
         </>
       )}
     </View>
