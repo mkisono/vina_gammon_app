@@ -87,26 +87,30 @@ export function useMatchResultsSubscription(
     const pendingChanges: PendingMatchResultChange[] = [];
 
     const fetchInitial = async () => {
-      let nextToken: string | null | undefined = undefined;
-      const all: MatchResult[] = [];
-      do {
-        const response: MatchResultsByEventResponse = await client.models.MatchResult.listMatchResultsByEvent(
-          { eventId: currentEventId },
-          {
-            sortDirection: "ASC",
-            nextToken,
-            limit: 1000,
-          }
-        );
-        all.push(...(response.data ?? []));
-        nextToken = response.nextToken;
-      } while (nextToken);
+      try {
+        let nextToken: string | null | undefined = undefined;
+        const all: MatchResult[] = [];
+        do {
+          const response: MatchResultsByEventResponse = await client.models.MatchResult.listMatchResultsByEvent(
+            { eventId: currentEventId },
+            {
+              sortDirection: "ASC",
+              nextToken,
+              limit: 1000,
+            }
+          );
+          all.push(...(response.data ?? []));
+          nextToken = response.nextToken;
+        } while (nextToken);
 
-      if (!cancelled) {
-        setResults((prev) => mergeInitialResults(prev, all, pendingChanges));
+        if (!cancelled) {
+          setResults((prev) => mergeInitialResults(prev, all, pendingChanges));
+        }
+      } catch (error) {
+        console.error("Failed to fetch initial match results.", error);
+      } finally {
+        isBootstrapping = false;
       }
-
-      isBootstrapping = false;
     };
 
     void fetchInitial();
