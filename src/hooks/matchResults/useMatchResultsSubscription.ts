@@ -38,25 +38,6 @@ const removeMatchResult = (items: MatchResult[], resultId?: string): MatchResult
   return items.filter((item) => item.resultId !== resultId);
 };
 
-const extractEvent = (value: unknown): MatchResult | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const maybeRecord = value as Record<string, unknown>;
-  const payload = (maybeRecord.data ?? value) as unknown;
-  if (!payload || typeof payload !== "object") {
-    return null;
-  }
-
-  const candidate = payload as Record<string, unknown>;
-  if (typeof candidate.resultId === "string") {
-    return candidate as MatchResult;
-  }
-
-  return null;
-};
-
 export function useMatchResultsSubscription(
   currentEventId: string,
   enabled = true
@@ -97,9 +78,7 @@ export function useMatchResultsSubscription(
     const onCreateSub = client.models.MatchResult.onCreate({
       filter: { eventId: { eq: currentEventId } },
     }).subscribe({
-      next: (value) => {
-        const created = extractEvent(value);
-        if (!created) return;
+      next: (created) => {
         setResults((prev) => upsertMatchResult(prev, created));
       },
     });
@@ -107,9 +86,7 @@ export function useMatchResultsSubscription(
     const onUpdateSub = client.models.MatchResult.onUpdate({
       filter: { eventId: { eq: currentEventId } },
     }).subscribe({
-      next: (value) => {
-        const updated = extractEvent(value);
-        if (!updated) return;
+      next: (updated) => {
         setResults((prev) => upsertMatchResult(prev, updated));
       },
     });
@@ -117,9 +94,8 @@ export function useMatchResultsSubscription(
     const onDeleteSub = client.models.MatchResult.onDelete({
       filter: { eventId: { eq: currentEventId } },
     }).subscribe({
-      next: (value) => {
-        const deleted = extractEvent(value);
-        setResults((prev) => removeMatchResult(prev, deleted?.resultId));
+      next: (deleted) => {
+        setResults((prev) => removeMatchResult(prev, deleted.resultId));
       },
     });
 
