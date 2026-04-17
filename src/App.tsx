@@ -26,8 +26,17 @@ function AuthenticatedContent({ signOut, user }: AuthenticatedContentProps) {
 }
 
 function App() {
+  const authComponents = {
+    SignIn: {
+      Footer() {
+        return null;
+      },
+    },
+  };
+
   return (
     <Authenticator
+      components={authComponents}
       loginMechanisms={["email"]}
       passwordless={{
         preferredAuthMethod: "EMAIL_OTP",
