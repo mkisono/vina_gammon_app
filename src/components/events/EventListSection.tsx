@@ -1,11 +1,12 @@
 import { Button, Heading, Text, View } from "@aws-amplify/ui-react";
 import type { Schema } from "../../../amplify/data/resource";
+import { isEventStatus, type EventStatus } from "../../lib/schemaTypes";
 
 type EventListSectionProps = {
   events: Array<Schema["Event"]["type"]>;
   isAdmin: boolean;
   isUpdatingStatus: boolean;
-  onChangeEventStatus: (eventId: string, status: "open" | "close") => void;
+  onChangeEventStatus: (eventId: string, status: EventStatus) => void;
   onOpenEventPage: (eventId: string) => void;
 };
 
@@ -16,7 +17,7 @@ export function EventListSection({
   onChangeEventStatus,
   onOpenEventPage,
 }: EventListSectionProps) {
-  const getStatusLabel = (status: "open" | "close" | null | undefined): string => {
+  const getStatusLabel = (status: Schema["Event"]["type"]["status"]): string => {
     if (status === "close") {
       return "終了";
     }
@@ -33,7 +34,7 @@ export function EventListSection({
           {events.map((event) => (
             <li key={event.eventId} style={{ marginBottom: "0.5rem" }}>
               {event.eventDate} - {event.name}
-              {isAdmin && ` [${getStatusLabel(event.status as "open" | "close" | undefined)}]`}
+              {isAdmin && ` [${getStatusLabel(event.status)}]`}
               {event.isTest && " [テスト]"}
               <Button size="small" marginLeft="0.5rem" onClick={() => onOpenEventPage(event.eventId)}>
                 イベントページを開く
@@ -44,12 +45,12 @@ export function EventListSection({
                     style={{ marginLeft: "0.5rem" }}
                     value={event.status ?? "open"}
                     aria-label="イベント状態"
-                    onChange={(e) =>
-                      onChangeEventStatus(
-                        event.eventId,
-                        e.target.value as "open" | "close"
-                      )
-                    }
+                    onChange={(e) => {
+                      if (!isEventStatus(e.target.value)) {
+                        return;
+                      }
+                      onChangeEventStatus(event.eventId, e.target.value);
+                    }}
                     disabled={isUpdatingStatus}
                   >
                     <option value="open">公開中</option>
