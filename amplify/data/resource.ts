@@ -67,6 +67,11 @@ const schema = a.schema({
       isJbsRated: a.boolean().required(),
     })
     .identifier(["resultId"])
+    .secondaryIndexes((index) => [
+      index("eventId")
+        .sortKeys(["matchDate", "matchTime"])
+        .queryField("listMatchResultsByEvent"),
+    ])
     .authorization((allow) => [
       allow.authenticated().to(["read", "create"]),
       allow.ownerDefinedIn("playerUserId").to(["update"]),

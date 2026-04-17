@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
+import { getStringClaim } from "./authClaims";
 
 type UseCurrentUserReturn = {
   userId: string | null;
@@ -17,11 +18,11 @@ export function useCurrentUser(): UseCurrentUserReturn {
       try {
         const session = await fetchAuthSession();
         const sub = session.userSub;
-        const email = session.tokens?.idToken?.payload?.email as string | undefined;
+        const email = getStringClaim(session.tokens?.idToken?.payload?.email);
 
         if (sub) {
           setUserId(sub);
-          setEmail(email || null);
+          setEmail(email);
         } else {
           setUserId(null);
           setEmail(null);

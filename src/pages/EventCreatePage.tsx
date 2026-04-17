@@ -3,6 +3,7 @@ import type { AuthUser } from "aws-amplify/auth";
 import { useNavigate } from "react-router-dom";
 import { AppHeader } from "../components/layout/AppHeader";
 import { useAuthUser, useCurrentUser, useEvents } from "../hooks";
+import { isEventStatus } from "../lib/schemaTypes";
 
 type EventCreatePageProps = {
   signOut?: () => void;
@@ -71,7 +72,12 @@ export function EventCreatePage({ signOut }: EventCreatePageProps) {
               <Text>公開設定</Text>
               <select
                 value={eventStatus}
-                onChange={(e) => setEventStatus(e.target.value as "open" | "close")}
+                onChange={(e) => {
+                  if (!isEventStatus(e.target.value)) {
+                    return;
+                  }
+                  setEventStatus(e.target.value);
+                }}
                 aria-label="イベント状態"
               >
                 <option value="open">公開中（登録可能）</option>

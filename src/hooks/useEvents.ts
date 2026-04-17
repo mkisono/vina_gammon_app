@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../amplify/data/resource";
+import type { EventStatus } from "../lib/schemaTypes";
 
 const client = generateClient<Schema>();
 
@@ -17,23 +18,23 @@ type UseEventsReturn = {
   eventIsTestById: Map<string, boolean>;
   eventName: string;
   eventDate: string;
-  eventStatus: "open" | "close";
+  eventStatus: EventStatus;
   eventIsTest: boolean;
   isSubmitting: boolean;
   isUpdatingStatus: boolean;
   setEventName: (value: string) => void;
   setEventDate: (value: string) => void;
-  setEventStatus: (value: "open" | "close") => void;
+  setEventStatus: (value: EventStatus) => void;
   setEventIsTest: (value: boolean) => void;
   createEvent: () => Promise<void>;
-  updateEventStatus: (eventId: string, status: "open" | "close") => Promise<void>;
+  updateEventStatus: (eventId: string, status: EventStatus) => Promise<void>;
 };
 
 export function useEvents(enabled = true): UseEventsReturn {
   const [events, setEvents] = useState<Array<Schema["Event"]["type"]>>([]);
   const [eventName, setEventName] = useState("");
   const [eventDate, setEventDate] = useState("");
-  const [eventStatus, setEventStatus] = useState<"open" | "close">("open");
+  const [eventStatus, setEventStatus] = useState<EventStatus>("open");
   const [eventIsTest, setEventIsTest] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -99,7 +100,7 @@ export function useEvents(enabled = true): UseEventsReturn {
     }
   };
 
-  const updateEventStatus = async (eventId: string, status: "open" | "close") => {
+  const updateEventStatus = async (eventId: string, status: EventStatus) => {
     if (!eventId) {
       return;
     }
