@@ -12,6 +12,10 @@ type UseMatchResultsSubscriptionReturn = {
   results: Array<MatchResult>;
 };
 
+type PendingMatchResultChange =
+  | { type: "upsert"; item: MatchResult }
+  | { type: "delete"; resultId: string };
+
 const sortMatchResults = (items: MatchResult[]): MatchResult[] => {
   return [...items].sort((a, b) => {
     const dateCompare = (a.matchDate ?? "").localeCompare(b.matchDate ?? "");
@@ -38,6 +42,34 @@ const removeMatchResult = (items: MatchResult[], resultId?: string): MatchResult
   return items.filter((item) => item.resultId !== resultId);
 };
 
+const applyPendingChange = (
+  items: MatchResult[],
+  change: PendingMatchResultChange
+): MatchResult[] => {
+  if (change.type === "upsert") {
+    return upsertMatchResult(items, change.item);
+  }
+  return removeMatchResult(items, change.resultId);
+};
+
+const mergeInitialResults = (
+  currentItems: MatchResult[],
+  fetchedItems: MatchResult[],
+  pendingChanges: PendingMatchResultChange[]
+): MatchResult[] => {
+  let nextItems = currentItems;
+
+  for (const item of fetchedItems) {
+    nextItems = upsertMatchResult(nextItems, item);
+  }
+
+  for (const change of pendingChanges) {
+    nextItems = applyPendingChange(nextItems, change);
+  }
+
+  return nextItems;
+};
+
 export function useMatchResultsSubscription(
   currentEventId: string,
   enabled = true
@@ -51,6 +83,8 @@ export function useMatchResultsSubscription(
     }
 
     let cancelled = false;
+    let isBootstrapping = true;
+    const pendingChanges: PendingMatchResultChange[] = [];
 
     const fetchInitial = async () => {
       let nextToken: string | null | undefined = undefined;
@@ -69,8 +103,10 @@ export function useMatchResultsSubscription(
       } while (nextToken);
 
       if (!cancelled) {
-        setResults(sortMatchResults(all));
+        setResults((prev) => mergeInitialResults(prev, all, pendingChanges));
       }
+
+      isBootstrapping = false;
     };
 
     void fetchInitial();
@@ -79,7 +115,11 @@ export function useMatchResultsSubscription(
       filter: { eventId: { eq: currentEventId } },
     }).subscribe({
       next: (created) => {
-        setResults((prev) => upsertMatchResult(prev, created));
+        const change: PendingMatchResultChange = { type: "upsert", item: created };
+        if (isBootstrapping) {
+          pendingChanges.push(change);
+        }
+        setResults((prev) => applyPendingChange(prev, change));
       },
     });
 
@@ -87,7 +127,11 @@ export function useMatchResultsSubscription(
       filter: { eventId: { eq: currentEventId } },
     }).subscribe({
       next: (updated) => {
-        setResults((prev) => upsertMatchResult(prev, updated));
+        const change: PendingMatchResultChange = { type: "upsert", item: updated };
+        if (isBootstrapping) {
+          pendingChanges.push(change);
+        }
+        setResults((prev) => applyPendingChange(prev, change));
       },
     });
 
@@ -95,7 +139,14 @@ export function useMatchResultsSubscription(
       filter: { eventId: { eq: currentEventId } },
     }).subscribe({
       next: (deleted) => {
-        setResults((prev) => removeMatchResult(prev, deleted.resultId));
+        const change: PendingMatchResultChange = {
+          type: "delete",
+          resultId: deleted.resultId,
+        };
+        if (isBootstrapping) {
+          pendingChanges.push(change);
+        }
+        setResults((prev) => applyPendingChange(prev, change));
       },
     });
 
