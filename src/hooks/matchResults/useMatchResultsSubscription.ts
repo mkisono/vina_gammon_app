@@ -75,6 +75,19 @@ export function useMatchResultsSubscription(
   enabled = true
 ): UseMatchResultsSubscriptionReturn {
   const [results, setResults] = useState<Array<MatchResult>>([]);
+  const [restartCount, setRestartCount] = useState(0);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        setRestartCount((c) => c + 1);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!enabled || !currentEventId) {
@@ -160,7 +173,7 @@ export function useMatchResultsSubscription(
       onUpdateSub.unsubscribe();
       onDeleteSub.unsubscribe();
     };
-  }, [enabled, currentEventId]);
+  }, [enabled, currentEventId, restartCount]);
 
   return { results };
 }
