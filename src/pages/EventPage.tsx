@@ -135,45 +135,55 @@ export function EventPage({ signOut }: EventPageProps) {
       )}
 
       <MatchResultSection
-        currentEventId={currentEventId}
-        currentEvent={currentEvent}
-        filteredResults={filteredResults}
-        isAdmin={isAdmin}
-        currentUserId={currentUserId || undefined}
-        profileNicknameByUserId={profileNicknameByUserId}
-        opponentNickname={opponentNickname}
-        opponentNicknameOptions={opponentNicknameOptions}
-        editingOpponentNicknameOptions={editingOpponentNicknameOptions}
-        adminMatchTime={adminMatchTime}
-        adminWinnerNickname={adminWinnerNickname}
-        adminLoserNickname={adminLoserNickname}
-        adminPlayerNicknameOptions={adminPlayerNicknameOptions}
-        adminLoserNicknameOptions={adminLoserNicknameOptions}
-        point={point}
-        isJbsRated={isJbsRated}
-        isResultSubmitting={isResultSubmitting}
-        editingResultId={editingResultId}
-        editingOpponentNickname={editingOpponentNickname}
-        editingPoint={editingPoint}
-        editingIsJbsRated={editingIsJbsRated}
-        isUpdatingResult={isUpdatingResult}
-        isDeletingResult={isDeletingResult}
-        onGoToHomePage={handleGoToHome}
-        onChangeOpponentNickname={setOpponentNickname}
-        onChangeAdminMatchTime={setAdminMatchTime}
-        onChangeAdminWinnerNickname={setAdminWinnerNickname}
-        onChangeAdminLoserNickname={setAdminLoserNickname}
-        onChangePoint={setPoint}
-        onChangeIsJbsRated={setIsJbsRated}
-        onCreateMatchResult={handleCreateMatchResult}
-        onCreateAdminMatchResult={handleCreateAdminMatchResult}
-        onStartEditResult={startEditResult}
-        onCancelEditResult={cancelEditResult}
-        onChangeEditingOpponentNickname={setEditingOpponentNickname}
-        onChangeEditingPoint={setEditingPoint}
-        onChangeEditingIsJbsRated={setEditingIsJbsRated}
-        onUpdateMatchResult={handleUpdateMatchResult}
-        onDeleteMatchResult={handleDeleteMatchResult}
+        eventContext={{
+          currentEventId,
+          currentEvent,
+          filteredResults,
+        }}
+        userContext={{
+          isAdmin,
+          currentUserId: currentUserId || undefined,
+          profileNicknameByUserId,
+        }}
+        createForm={{
+          opponentNickname,
+          opponentNicknameOptions,
+          adminMatchTime,
+          adminWinnerNickname,
+          adminLoserNickname,
+          adminPlayerNicknameOptions,
+          adminLoserNicknameOptions,
+          point,
+          isJbsRated,
+          isResultSubmitting,
+        }}
+        editForm={{
+          editingOpponentNicknameOptions,
+          editingResultId,
+          editingOpponentNickname,
+          editingPoint,
+          editingIsJbsRated,
+          isUpdatingResult,
+          isDeletingResult,
+        }}
+        actions={{
+          onGoToHomePage: handleGoToHome,
+          onChangeOpponentNickname: setOpponentNickname,
+          onChangeAdminMatchTime: setAdminMatchTime,
+          onChangeAdminWinnerNickname: setAdminWinnerNickname,
+          onChangeAdminLoserNickname: setAdminLoserNickname,
+          onChangePoint: setPoint,
+          onChangeIsJbsRated: setIsJbsRated,
+          onCreateMatchResult: handleCreateMatchResult,
+          onCreateAdminMatchResult: handleCreateAdminMatchResult,
+          onStartEditResult: startEditResult,
+          onCancelEditResult: cancelEditResult,
+          onChangeEditingOpponentNickname: setEditingOpponentNickname,
+          onChangeEditingPoint: setEditingPoint,
+          onChangeEditingIsJbsRated: setEditingIsJbsRated,
+          onUpdateMatchResult: handleUpdateMatchResult,
+          onDeleteMatchResult: handleDeleteMatchResult,
+        }}
       />
 
       <LeaderboardSection title="ランキング" rows={eventLeaderboardRows} />

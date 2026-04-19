@@ -5,16 +5,21 @@ import { MatchResultForm } from "./MatchResultForm";
 import { MatchResultTable } from "./MatchResultTable";
 import { MatchResultEditDialog } from "./MatchResultEditDialog";
 
-type MatchResultSectionProps = {
+type MatchResultEventContextProps = {
   currentEventId: string;
   currentEvent: Schema["Event"]["type"] | null;
   filteredResults: Array<Schema["MatchResult"]["type"]>;
+};
+
+type MatchResultUserContextProps = {
   isAdmin: boolean;
   currentUserId?: string;
   profileNicknameByUserId: Record<string, string>;
+};
+
+type MatchResultCreateFormProps = {
   opponentNickname: string;
   opponentNicknameOptions: string[];
-  editingOpponentNicknameOptions: string[];
   adminMatchTime?: string;
   adminWinnerNickname?: string;
   adminLoserNickname?: string;
@@ -23,12 +28,19 @@ type MatchResultSectionProps = {
   point: number;
   isJbsRated: boolean;
   isResultSubmitting: boolean;
+};
+
+type MatchResultEditFormProps = {
+  editingOpponentNicknameOptions: string[];
   editingResultId: string;
   editingOpponentNickname: string;
   editingPoint: number;
   editingIsJbsRated: boolean;
   isUpdatingResult: boolean;
   isDeletingResult: boolean;
+};
+
+type MatchResultActionProps = {
   onGoToHomePage: () => void;
   onChangeOpponentNickname: (value: string) => void;
   onChangeAdminMatchTime?: (value: string) => void;
@@ -47,47 +59,63 @@ type MatchResultSectionProps = {
   onDeleteMatchResult: (resultId: string) => void;
 };
 
+type MatchResultSectionProps = {
+  eventContext: MatchResultEventContextProps;
+  userContext: MatchResultUserContextProps;
+  createForm: MatchResultCreateFormProps;
+  editForm: MatchResultEditFormProps;
+  actions: MatchResultActionProps;
+};
+
 export function MatchResultSection({
-  currentEventId,
-  currentEvent,
-  filteredResults,
-  isAdmin,
-  currentUserId,
-  profileNicknameByUserId,
-  opponentNickname,
-  opponentNicknameOptions,
-  editingOpponentNicknameOptions,
-  adminMatchTime = "",
-  adminWinnerNickname = "",
-  adminLoserNickname = "",
-  adminPlayerNicknameOptions = [],
-  adminLoserNicknameOptions = [],
-  point,
-  isJbsRated,
-  isResultSubmitting,
-  editingResultId,
-  editingOpponentNickname,
-  editingPoint,
-  editingIsJbsRated,
-  isUpdatingResult,
-  isDeletingResult,
-  onGoToHomePage,
-  onChangeOpponentNickname,
-  onChangeAdminMatchTime = () => {},
-  onChangeAdminWinnerNickname = () => {},
-  onChangeAdminLoserNickname = () => {},
-  onChangePoint,
-  onChangeIsJbsRated,
-  onCreateMatchResult,
-  onCreateAdminMatchResult = () => {},
-  onStartEditResult,
-  onCancelEditResult,
-  onChangeEditingOpponentNickname,
-  onChangeEditingPoint,
-  onChangeEditingIsJbsRated,
-  onUpdateMatchResult,
-  onDeleteMatchResult,
+  eventContext,
+  userContext,
+  createForm,
+  editForm,
+  actions,
 }: MatchResultSectionProps) {
+  const { currentEventId, currentEvent, filteredResults } = eventContext;
+  const { isAdmin, currentUserId, profileNicknameByUserId } = userContext;
+  const {
+    opponentNickname,
+    opponentNicknameOptions,
+    adminMatchTime = "",
+    adminWinnerNickname = "",
+    adminLoserNickname = "",
+    adminPlayerNicknameOptions = [],
+    adminLoserNicknameOptions = [],
+    point,
+    isJbsRated,
+    isResultSubmitting,
+  } = createForm;
+  const {
+    editingOpponentNicknameOptions,
+    editingResultId,
+    editingOpponentNickname,
+    editingPoint,
+    editingIsJbsRated,
+    isUpdatingResult,
+    isDeletingResult,
+  } = editForm;
+  const {
+    onGoToHomePage,
+    onChangeOpponentNickname,
+    onChangeAdminMatchTime = () => {},
+    onChangeAdminWinnerNickname = () => {},
+    onChangeAdminLoserNickname = () => {},
+    onChangePoint,
+    onChangeIsJbsRated,
+    onCreateMatchResult,
+    onCreateAdminMatchResult = () => {},
+    onStartEditResult,
+    onCancelEditResult,
+    onChangeEditingOpponentNickname,
+    onChangeEditingPoint,
+    onChangeEditingIsJbsRated,
+    onUpdateMatchResult,
+    onDeleteMatchResult,
+  } = actions;
+
   const currentEventStatus = currentEvent?.status ?? "open";
   const canCreateResult = isAdmin || currentEventStatus === "open";
   const registrationClosedMessage =
