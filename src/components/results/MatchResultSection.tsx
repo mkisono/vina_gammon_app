@@ -1,5 +1,6 @@
 import { Button, Heading, Text, View } from "@aws-amplify/ui-react";
 import type { Schema } from "../../../amplify/data/resource";
+import { AdminMatchResultForm } from "./AdminMatchResultForm";
 import { MatchResultForm } from "./MatchResultForm";
 import { MatchResultTable } from "./MatchResultTable";
 import { MatchResultEditDialog } from "./MatchResultEditDialog";
@@ -14,6 +15,11 @@ type MatchResultSectionProps = {
   opponentNickname: string;
   opponentNicknameOptions: string[];
   editingOpponentNicknameOptions: string[];
+  adminMatchTime?: string;
+  adminWinnerNickname?: string;
+  adminLoserNickname?: string;
+  adminPlayerNicknameOptions?: string[];
+  adminLoserNicknameOptions?: string[];
   point: number;
   isJbsRated: boolean;
   isResultSubmitting: boolean;
@@ -25,9 +31,13 @@ type MatchResultSectionProps = {
   isDeletingResult: boolean;
   onGoToHomePage: () => void;
   onChangeOpponentNickname: (value: string) => void;
+  onChangeAdminMatchTime?: (value: string) => void;
+  onChangeAdminWinnerNickname?: (value: string) => void;
+  onChangeAdminLoserNickname?: (value: string) => void;
   onChangePoint: (value: number) => void;
   onChangeIsJbsRated: (value: boolean) => void;
   onCreateMatchResult: () => void;
+  onCreateAdminMatchResult?: () => void;
   onStartEditResult: (result: Schema["MatchResult"]["type"]) => void;
   onCancelEditResult: () => void;
   onChangeEditingOpponentNickname: (value: string) => void;
@@ -47,6 +57,11 @@ export function MatchResultSection({
   opponentNickname,
   opponentNicknameOptions,
   editingOpponentNicknameOptions,
+  adminMatchTime = "",
+  adminWinnerNickname = "",
+  adminLoserNickname = "",
+  adminPlayerNicknameOptions = [],
+  adminLoserNicknameOptions = [],
   point,
   isJbsRated,
   isResultSubmitting,
@@ -58,9 +73,13 @@ export function MatchResultSection({
   isDeletingResult,
   onGoToHomePage,
   onChangeOpponentNickname,
+  onChangeAdminMatchTime = () => {},
+  onChangeAdminWinnerNickname = () => {},
+  onChangeAdminLoserNickname = () => {},
   onChangePoint,
   onChangeIsJbsRated,
   onCreateMatchResult,
+  onCreateAdminMatchResult = () => {},
   onStartEditResult,
   onCancelEditResult,
   onChangeEditingOpponentNickname,
@@ -70,7 +89,7 @@ export function MatchResultSection({
   onDeleteMatchResult,
 }: MatchResultSectionProps) {
   const currentEventStatus = currentEvent?.status ?? "open";
-  const canCreateResult = currentEventStatus === "open";
+  const canCreateResult = isAdmin || currentEventStatus === "open";
   const registrationClosedMessage =
     currentEventStatus === "close"
       ? "このイベントは終了しました。試合結果の新規登録はできません。"
@@ -103,21 +122,41 @@ export function MatchResultSection({
         </>
       ) : (
         <>
-          {!canCreateResult && (
+          {!isAdmin && !canCreateResult && (
             <Text marginTop="0.75rem">{registrationClosedMessage}</Text>
           )}
-          <MatchResultForm
-            canCreateResult={canCreateResult}
-            opponentNickname={opponentNickname}
-            opponentNicknameOptions={opponentNicknameOptions}
-            point={point}
-            isJbsRated={isJbsRated}
-            isResultSubmitting={isResultSubmitting}
-            onChangeOpponentNickname={onChangeOpponentNickname}
-            onChangePoint={onChangePoint}
-            onChangeIsJbsRated={onChangeIsJbsRated}
-            onCreateMatchResult={onCreateMatchResult}
-          />
+          {isAdmin ? (
+            <AdminMatchResultForm
+              canCreateResult={canCreateResult}
+              adminMatchTime={adminMatchTime}
+              adminWinnerNickname={adminWinnerNickname}
+              adminLoserNickname={adminLoserNickname}
+              adminPlayerNicknameOptions={adminPlayerNicknameOptions}
+              adminLoserNicknameOptions={adminLoserNicknameOptions}
+              point={point}
+              isJbsRated={isJbsRated}
+              isResultSubmitting={isResultSubmitting}
+              onChangeAdminMatchTime={onChangeAdminMatchTime}
+              onChangeAdminWinnerNickname={onChangeAdminWinnerNickname}
+              onChangeAdminLoserNickname={onChangeAdminLoserNickname}
+              onChangePoint={onChangePoint}
+              onChangeIsJbsRated={onChangeIsJbsRated}
+              onCreateAdminMatchResult={onCreateAdminMatchResult}
+            />
+          ) : (
+            <MatchResultForm
+              canCreateResult={canCreateResult}
+              opponentNickname={opponentNickname}
+              opponentNicknameOptions={opponentNicknameOptions}
+              point={point}
+              isJbsRated={isJbsRated}
+              isResultSubmitting={isResultSubmitting}
+              onChangeOpponentNickname={onChangeOpponentNickname}
+              onChangePoint={onChangePoint}
+              onChangeIsJbsRated={onChangeIsJbsRated}
+              onCreateMatchResult={onCreateMatchResult}
+            />
+          )}
           <MatchResultTable
             filteredResults={filteredResults}
             isAdmin={isAdmin}
