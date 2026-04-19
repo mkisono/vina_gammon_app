@@ -57,6 +57,8 @@
   - `EventUserContribution`: 作成・読み取り・更新・削除は集計Lambdaまたは管理者のみ
 - field-level の認可は原則として持たず、モデル単位で操作権限を管理する
 - 一般ユーザーが更新可能なプロフィール項目は、`PublicProfile.nickname` と `PrivateProfile.realName` のみとする
+- `MatchResult` の owner 判定は作成者ではなく `playerUserId`(勝者)を基準とする
+  - 管理者の代理登録であっても、`playerUserId` のユーザーは owner として更新可能
 
 | API操作 | 一般ユーザー | 管理者 | 認可条件 |
 | --- | --- | --- | --- |
@@ -77,7 +79,7 @@
 | PrivateProfile更新(自分) | 可 | 可 | `PrivateProfile` モデルに対して owner。更新可能項目は `realName` のみ |
 | PrivateProfile更新(他人) | 不可 | 可 | `PrivateProfile` モデルに対して `group contains ADMIN` |
 | PrivateProfile削除 | 不可 | 可 | `PrivateProfile` モデルに対して `group contains ADMIN` |
-| MatchResult作成 | 可 | 可 | `MatchResult` モデルの create を認証済みユーザーに許可。`playerUserId = requesterUserId` |
+| MatchResult作成 | 可 | 可 | `MatchResult` モデルの create を認証済みユーザーに許可。一般ユーザーは `playerUserId = requesterUserId`、管理者は `playerUserId` / `loserUserId` / `matchTime` を指定して代理登録可 |
 | MatchResult更新(自分が作成) | 可 | 可 | `MatchResult` モデルに対して owner (`playerUserId = requesterUserId`) |
 | MatchResult更新(他人が作成) | 不可 | 可 | `MatchResult` モデルに対して `group contains ADMIN` |
 | MatchResult削除 | 不可 | 可 | `MatchResult` モデルに対して `group contains ADMIN` |
@@ -93,7 +95,7 @@
   - 「イベント作成」は独立ページ(`/events/create`)に遷移して実行する
   - イベントは状態(`status`)を持つ
     - `open`: 一覧表示され、試合結果の新規登録が可能
-    - `close`: 一覧表示されるが、試合結果の新規登録は不可
+    - `close`: 一覧表示される。一般ユーザーの新規登録は不可、管理者は新規登録可能
   - イベントはテスト用途フラグ(`isTest`)を持つ
     - `false`: 通常イベント(集計対象)
     - `true`: テストイベント(ランキング集計対象外)
@@ -144,9 +146,19 @@
     - JBSレーティング対象をONにした時点でポイント数が 5 未満の場合、UIは自動的に 5 に補正する
     - ポイント数を 5 未満に変更した状態でJBSレーティング対象がONのまま保存しようとした場合、バリデーションエラーで阻止する
 - 日付・時刻のタイムゾーンは JST 固定とする
-- 試合結果の登録運用は「勝者が登録する」とする
-- 試合結果の新規登録は、対象イベントの状態が `open` の場合のみ可能とする
-- 対象イベントの状態が `close` の場合、既存のランキング・試合結果一覧の閲覧は可能だが新規登録は不可とする
+- 試合結果の登録運用は「勝者が登録する」を基本とする
+  - 一般ユーザー: 勝者=ログインユーザーとして登録する
+  - 管理者: 代理登録を許可し、勝者・敗者を指定して登録できる
+- 試合結果の新規登録は、ロールにより以下のとおりとする
+  - 一般ユーザー: 対象イベントの状態が `open` の場合のみ可能
+  - 管理者: `open` / `close` いずれのイベントでも新規登録可能
+- 対象イベントの状態が `close` の場合、一般ユーザーは既存のランキング・試合結果一覧の閲覧のみ可能とする
+- 管理者ログイン時の新規登録フォーム仕様
+  - 入力項目: 時刻(`matchTime`), 勝者ユーザーID(`playerUserId`), 敗者ユーザーID(`loserUserId`), ポイント, JBSフラグ
+  - 時刻入力は `HH:mm` 形式(time input)とし、JST固定で扱う
+  - 勝者と敗者に同一ユーザーは指定不可
+  - 勝者/敗者は登録済みユーザー一覧から選択する
+  - ポイント/JBSの制約は一般ユーザー登録と同一ルールを適用する
 - 登録した試合結果の編集ができる
   - ユーザーは、自分が登録した試合結果のみ修正できる
   - 管理者は、すべての試合結果を修正できる
@@ -292,7 +304,7 @@
 - 主な項目
   - `resultId` (string, PK): 試合結果ID
   - `eventId` (string, required): 対象イベントID
-  - `playerUserId` (string, required): 勝者(登録者)のユーザーID
+  - `playerUserId` (string, required): 勝者のユーザーID
   - `loserUserId` (string, required): 敗者のユーザーID
   - `matchDate` (date, required): 試合日
   - `matchTime` (time, required): 試合時刻
