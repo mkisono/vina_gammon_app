@@ -1,7 +1,7 @@
 import { Button, Heading, Text, View } from "@aws-amplify/ui-react";
 import type { Schema } from "../../../amplify/data/resource";
 
-type MatchResultTableProps = {
+export type MatchResultTableProps = {
   filteredResults: Array<Schema["MatchResult"]["type"]>;
   isAdmin: boolean;
   currentUserId?: string;

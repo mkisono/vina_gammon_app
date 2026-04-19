@@ -168,21 +168,33 @@ export function EventPage({ signOut }: EventPageProps) {
         }}
         actions={{
           onGoToHomePage: handleGoToHome,
-          onChangeOpponentNickname: setOpponentNickname,
-          onChangeAdminMatchTime: setAdminMatchTime,
-          onChangeAdminWinnerNickname: setAdminWinnerNickname,
-          onChangeAdminLoserNickname: setAdminLoserNickname,
-          onChangePoint: setPoint,
-          onChangeIsJbsRated: setIsJbsRated,
-          onCreateMatchResult: handleCreateMatchResult,
-          onCreateAdminMatchResult: handleCreateAdminMatchResult,
-          onStartEditResult: startEditResult,
-          onCancelEditResult: cancelEditResult,
-          onChangeEditingOpponentNickname: setEditingOpponentNickname,
-          onChangeEditingPoint: setEditingPoint,
-          onChangeEditingIsJbsRated: setEditingIsJbsRated,
-          onUpdateMatchResult: handleUpdateMatchResult,
-          onDeleteMatchResult: handleDeleteMatchResult,
+          create: {
+            user: {
+              onChangeOpponentNickname: setOpponentNickname,
+              onChangePoint: setPoint,
+              onChangeIsJbsRated: setIsJbsRated,
+              onCreateMatchResult: handleCreateMatchResult,
+            },
+            admin: {
+              onChangeAdminMatchTime: setAdminMatchTime,
+              onChangeAdminWinnerNickname: setAdminWinnerNickname,
+              onChangeAdminLoserNickname: setAdminLoserNickname,
+              onChangePoint: setPoint,
+              onChangeIsJbsRated: setIsJbsRated,
+              onCreateAdminMatchResult: handleCreateAdminMatchResult,
+            },
+          },
+          edit: {
+            onCancelEditResult: cancelEditResult,
+            onChangeEditingOpponentNickname: setEditingOpponentNickname,
+            onChangeEditingPoint: setEditingPoint,
+            onChangeEditingIsJbsRated: setEditingIsJbsRated,
+            onUpdateMatchResult: handleUpdateMatchResult,
+          },
+          table: {
+            onStartEditResult: startEditResult,
+            onDeleteMatchResult: handleDeleteMatchResult,
+          },
         }}
       />
 

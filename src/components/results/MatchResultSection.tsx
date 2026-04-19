@@ -1,9 +1,9 @@
 import { Button, Heading, Text, View } from "@aws-amplify/ui-react";
 import type { Schema } from "../../../amplify/data/resource";
-import { AdminMatchResultForm } from "./AdminMatchResultForm";
-import { MatchResultForm } from "./MatchResultForm";
-import { MatchResultTable } from "./MatchResultTable";
-import { MatchResultEditDialog } from "./MatchResultEditDialog";
+import { AdminMatchResultForm, type AdminMatchResultFormProps } from "./AdminMatchResultForm";
+import { MatchResultForm, type MatchResultFormProps } from "./MatchResultForm";
+import { MatchResultTable, type MatchResultTableProps } from "./MatchResultTable";
+import { MatchResultEditDialog, type MatchResultEditDialogProps } from "./MatchResultEditDialog";
 
 type MatchResultEventContextProps = {
   currentEventId: string;
@@ -42,21 +42,30 @@ type MatchResultEditFormProps = {
 
 type MatchResultActionProps = {
   onGoToHomePage: () => void;
-  onChangeOpponentNickname: (value: string) => void;
-  onChangeAdminMatchTime?: (value: string) => void;
-  onChangeAdminWinnerNickname?: (value: string) => void;
-  onChangeAdminLoserNickname?: (value: string) => void;
-  onChangePoint: (value: number) => void;
-  onChangeIsJbsRated: (value: boolean) => void;
-  onCreateMatchResult: () => void;
-  onCreateAdminMatchResult?: () => void;
-  onStartEditResult: (result: Schema["MatchResult"]["type"]) => void;
-  onCancelEditResult: () => void;
-  onChangeEditingOpponentNickname: (value: string) => void;
-  onChangeEditingPoint: (value: number) => void;
-  onChangeEditingIsJbsRated: (value: boolean) => void;
-  onUpdateMatchResult: () => void;
-  onDeleteMatchResult: (resultId: string) => void;
+  create: {
+    user: Pick<
+      MatchResultFormProps,
+      "onChangeOpponentNickname" | "onChangePoint" | "onChangeIsJbsRated" | "onCreateMatchResult"
+    >;
+    admin: Pick<
+      AdminMatchResultFormProps,
+      | "onChangeAdminMatchTime"
+      | "onChangeAdminWinnerNickname"
+      | "onChangeAdminLoserNickname"
+      | "onChangePoint"
+      | "onChangeIsJbsRated"
+      | "onCreateAdminMatchResult"
+    >;
+  };
+  edit: Pick<
+    MatchResultEditDialogProps,
+    | "onChangeEditingOpponentNickname"
+    | "onChangeEditingPoint"
+    | "onChangeEditingIsJbsRated"
+    | "onUpdateMatchResult"
+    | "onCancelEditResult"
+  >;
+  table: Pick<MatchResultTableProps, "onStartEditResult" | "onDeleteMatchResult">;
 };
 
 type MatchResultSectionProps = {
@@ -99,22 +108,13 @@ export function MatchResultSection({
   } = editForm;
   const {
     onGoToHomePage,
-    onChangeOpponentNickname,
-    onChangeAdminMatchTime = () => {},
-    onChangeAdminWinnerNickname = () => {},
-    onChangeAdminLoserNickname = () => {},
-    onChangePoint,
-    onChangeIsJbsRated,
-    onCreateMatchResult,
-    onCreateAdminMatchResult = () => {},
-    onStartEditResult,
-    onCancelEditResult,
-    onChangeEditingOpponentNickname,
-    onChangeEditingPoint,
-    onChangeEditingIsJbsRated,
-    onUpdateMatchResult,
-    onDeleteMatchResult,
+    create,
+    edit,
+    table,
   } = actions;
+
+  const createUserActions = create.user;
+  const createAdminActions = create.admin;
 
   const currentEventStatus = currentEvent?.status ?? "open";
   const canCreateResult = isAdmin || currentEventStatus === "open";
@@ -164,12 +164,7 @@ export function MatchResultSection({
               point={point}
               isJbsRated={isJbsRated}
               isResultSubmitting={isResultSubmitting}
-              onChangeAdminMatchTime={onChangeAdminMatchTime}
-              onChangeAdminWinnerNickname={onChangeAdminWinnerNickname}
-              onChangeAdminLoserNickname={onChangeAdminLoserNickname}
-              onChangePoint={onChangePoint}
-              onChangeIsJbsRated={onChangeIsJbsRated}
-              onCreateAdminMatchResult={onCreateAdminMatchResult}
+              {...createAdminActions}
             />
           ) : (
             <MatchResultForm
@@ -179,10 +174,7 @@ export function MatchResultSection({
               point={point}
               isJbsRated={isJbsRated}
               isResultSubmitting={isResultSubmitting}
-              onChangeOpponentNickname={onChangeOpponentNickname}
-              onChangePoint={onChangePoint}
-              onChangeIsJbsRated={onChangeIsJbsRated}
-              onCreateMatchResult={onCreateMatchResult}
+              {...createUserActions}
             />
           )}
           <MatchResultTable
@@ -194,8 +186,7 @@ export function MatchResultSection({
             profileNicknameByUserId={profileNicknameByUserId}
             editingResultId={editingResultId}
             isDeletingResult={isDeletingResult}
-            onStartEditResult={onStartEditResult}
-            onDeleteMatchResult={onDeleteMatchResult}
+            {...table}
           />
           <MatchResultEditDialog
             editingResult={editingResult}
@@ -205,11 +196,7 @@ export function MatchResultSection({
             editingPoint={editingPoint}
             editingIsJbsRated={editingIsJbsRated}
             isUpdatingResult={isUpdatingResult}
-            onChangeEditingOpponentNickname={onChangeEditingOpponentNickname}
-            onChangeEditingPoint={onChangeEditingPoint}
-            onChangeEditingIsJbsRated={onChangeEditingIsJbsRated}
-            onUpdateMatchResult={onUpdateMatchResult}
-            onCancelEditResult={onCancelEditResult}
+            {...edit}
           />
         </>
       )}
