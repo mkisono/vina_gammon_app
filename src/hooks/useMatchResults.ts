@@ -17,6 +17,7 @@ import {
 import {
   validateCreateInput,
   validateUpdateInput,
+  validateAdminCreateInput,
   resolveUserIdByNickname,
   isValidPoint,
 } from "./matchResults/validation";
@@ -202,20 +203,20 @@ export function useMatchResults(
   };
 
   const createAdminMatchResult = async (eventId: string, event: Schema["Event"]["type"]) => {
-    if (!eventId || !event) {
-      window.alert("イベントページから登録してください。");
-      return;
-    }
-    if (!adminMatchTime) {
-      window.alert("時刻を入力してください。");
-      return;
-    }
-    if (!adminWinnerNickname) {
-      window.alert("勝者を選択してください。");
-      return;
-    }
-    if (!adminLoserNickname) {
-      window.alert("敗者を選択してください。");
+    const adminCreateValidationError = validateAdminCreateInput({
+      isAdmin,
+      eventId,
+      event,
+      adminMatchTime,
+      adminWinnerNickname,
+      adminLoserNickname,
+      adminPlayerNicknameOptions,
+      adminLoserNicknameOptions,
+      point,
+      isJbsRated,
+    });
+    if (adminCreateValidationError) {
+      window.alert(adminCreateValidationError);
       return;
     }
 
