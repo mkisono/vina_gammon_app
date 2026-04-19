@@ -28,7 +28,12 @@ export function EventPage({ signOut }: EventPageProps) {
     filteredResults,
     opponentNicknameOptions,
     editingOpponentNicknameOptions,
+    adminPlayerNicknameOptions,
+    adminLoserNicknameOptions,
     opponentNickname,
+    adminMatchTime,
+    adminWinnerNickname,
+    adminLoserNickname,
     point,
     isJbsRated,
     isResultSubmitting,
@@ -39,12 +44,16 @@ export function EventPage({ signOut }: EventPageProps) {
     isUpdatingResult,
     isDeletingResult,
     setOpponentNickname,
+    setAdminMatchTime,
+    setAdminWinnerNickname,
+    setAdminLoserNickname,
     setPoint,
     setIsJbsRated,
     setEditingOpponentNickname,
     setEditingPoint,
     setEditingIsJbsRated,
     createMatchResult,
+    createAdminMatchResult,
     startEditResult,
     cancelEditResult,
     updateMatchResult,
@@ -83,6 +92,11 @@ export function EventPage({ signOut }: EventPageProps) {
   const handleUpdateMatchResult = async () => {
     if (!currentUserId) return;
     await updateMatchResult(currentUserId);
+  };
+
+  const handleCreateAdminMatchResult = async () => {
+    if (!isAdmin || !currentEvent) return;
+    await createAdminMatchResult(currentEventId, currentEvent);
   };
 
   const handleDeleteMatchResult = async (resultId: string) => {
@@ -130,6 +144,11 @@ export function EventPage({ signOut }: EventPageProps) {
         opponentNickname={opponentNickname}
         opponentNicknameOptions={opponentNicknameOptions}
         editingOpponentNicknameOptions={editingOpponentNicknameOptions}
+        adminMatchTime={adminMatchTime}
+        adminWinnerNickname={adminWinnerNickname}
+        adminLoserNickname={adminLoserNickname}
+        adminPlayerNicknameOptions={adminPlayerNicknameOptions}
+        adminLoserNicknameOptions={adminLoserNicknameOptions}
         point={point}
         isJbsRated={isJbsRated}
         isResultSubmitting={isResultSubmitting}
@@ -141,9 +160,13 @@ export function EventPage({ signOut }: EventPageProps) {
         isDeletingResult={isDeletingResult}
         onGoToHomePage={handleGoToHome}
         onChangeOpponentNickname={setOpponentNickname}
+        onChangeAdminMatchTime={setAdminMatchTime}
+        onChangeAdminWinnerNickname={setAdminWinnerNickname}
+        onChangeAdminLoserNickname={setAdminLoserNickname}
         onChangePoint={setPoint}
         onChangeIsJbsRated={setIsJbsRated}
         onCreateMatchResult={handleCreateMatchResult}
+        onCreateAdminMatchResult={handleCreateAdminMatchResult}
         onStartEditResult={startEditResult}
         onCancelEditResult={cancelEditResult}
         onChangeEditingOpponentNickname={setEditingOpponentNickname}
