@@ -3,7 +3,7 @@ import { SearchableCombobox } from "./SearchableCombobox";
 import { POINT_OPTIONS } from "./matchResultConstants";
 import { JBS_MIN_POINT } from "../../hooks/matchResults/validation";
 
-type MatchResultFormProps = {
+export type MatchResultFormProps = {
   canCreateResult: boolean;
   opponentNickname: string;
   opponentNicknameOptions: string[];

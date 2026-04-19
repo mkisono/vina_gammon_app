@@ -4,7 +4,7 @@ import { SearchableCombobox } from "./SearchableCombobox";
 import { POINT_OPTIONS } from "./matchResultConstants";
 import { JBS_MIN_POINT } from "../../hooks/matchResults/validation";
 
-type MatchResultEditDialogProps = {
+export type MatchResultEditDialogProps = {
   editingResult: Schema["MatchResult"]["type"] | null;
   editingWinnerDisplayName: string;
   editingOpponentNickname: string;

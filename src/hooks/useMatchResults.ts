@@ -17,6 +17,7 @@ import {
 import {
   validateCreateInput,
   validateUpdateInput,
+  validateAdminCreateInput,
   resolveUserIdByNickname,
   isValidPoint,
 } from "./matchResults/validation";
@@ -39,13 +40,22 @@ const createResultId = (): string => {
   return `${ts}-${rand}`;
 };
 
+const getDefaultAdminMatchTime = (): string => {
+  return getJstTimeHHmm();
+};
+
 type UseMatchResultsReturn = {
   results: Array<Schema["MatchResult"]["type"]>;
   eventResults: Array<Schema["MatchResult"]["type"]>;
   filteredResults: Array<Schema["MatchResult"]["type"]>;
   opponentNicknameOptions: string[];
   editingOpponentNicknameOptions: string[];
+  adminPlayerNicknameOptions: string[];
+  adminLoserNicknameOptions: string[];
   opponentNickname: string;
+  adminMatchTime: string;
+  adminWinnerNickname: string;
+  adminLoserNickname: string;
   point: number;
   isJbsRated: boolean;
   isResultSubmitting: boolean;
@@ -55,6 +65,9 @@ type UseMatchResultsReturn = {
   editingIsJbsRated: boolean;
   isUpdatingResult: boolean;
   setOpponentNickname: (value: string) => void;
+  setAdminMatchTime: (value: string) => void;
+  setAdminWinnerNickname: (value: string) => void;
+  setAdminLoserNickname: (value: string) => void;
   setPoint: (value: number) => void;
   setIsJbsRated: (value: boolean) => void;
   setEditingOpponentNickname: (value: string) => void;
@@ -66,6 +79,7 @@ type UseMatchResultsReturn = {
     event: Schema["Event"]["type"],
     playerUserId: string
   ) => Promise<void>;
+  createAdminMatchResult: (eventId: string, event: Schema["Event"]["type"]) => Promise<void>;
   startEditResult: (result: Schema["MatchResult"]["type"]) => void;
   cancelEditResult: () => void;
   updateMatchResult: (updaterUserId: string) => Promise<void>;
@@ -89,6 +103,9 @@ export function useMatchResults(
     setIsJbsRated,
     resetAfterCreate,
   } = useMatchResultFormState(getDefaultPoint());
+  const [adminMatchTime, setAdminMatchTime] = useState(getDefaultAdminMatchTime());
+  const [adminWinnerNickname, setAdminWinnerNickname] = useState("");
+  const [adminLoserNickname, setAdminLoserNickname] = useState("");
   const {
     editingResultId,
     editingOpponentNickname,
@@ -114,6 +131,14 @@ export function useMatchResults(
       .filter((name) => name.length > 0);
     return [...new Set(nicknames)].sort((a, b) => a.localeCompare(b));
   }, [profiles]);
+
+  const adminPlayerNicknameOptions = useMemo(() => {
+    return editingOpponentNicknameOptions;
+  }, [editingOpponentNicknameOptions]);
+
+  const adminLoserNicknameOptions = useMemo(() => {
+    return editingOpponentNicknameOptions;
+  }, [editingOpponentNicknameOptions]);
 
   const eventResults = useMemo(() => {
     return buildEventResults(results, currentEventId);
@@ -171,6 +196,61 @@ export function useMatchResults(
         return;
       }
       window.localStorage.setItem(POINT_STORAGE_KEY, String(point));
+      resetAfterCreate();
+    } finally {
+      setIsResultSubmitting(false);
+    }
+  };
+
+  const createAdminMatchResult = async (eventId: string, event: Schema["Event"]["type"]) => {
+    const adminCreateValidationError = validateAdminCreateInput({
+      isAdmin,
+      eventId,
+      event,
+      adminMatchTime,
+      adminWinnerNickname,
+      adminLoserNickname,
+      adminPlayerNicknameOptions,
+      adminLoserNicknameOptions,
+      point,
+      isJbsRated,
+    });
+    if (adminCreateValidationError) {
+      window.alert(adminCreateValidationError);
+      return;
+    }
+
+    const winnerUserId = resolveUserIdByNickname(profiles, adminWinnerNickname);
+    const loserUserId = resolveUserIdByNickname(profiles, adminLoserNickname);
+    if (!winnerUserId || !loserUserId) {
+      window.alert("ユーザーを特定できません。プロフィールを確認してください。");
+      return;
+    }
+    if (winnerUserId === loserUserId) {
+      window.alert("勝者と敗者を同一ユーザーには指定できません。");
+      return;
+    }
+
+    setIsResultSubmitting(true);
+    try {
+      const result = await createMatchResultRecord({
+        resultId: createResultId(),
+        eventId,
+        playerUserId: winnerUserId,
+        loserUserId,
+        matchDate: event.eventDate,
+        matchTime: adminMatchTime,
+        point,
+        isJbsRated,
+      });
+      if (result.errors?.length) {
+        window.alert(`試合結果の登録に失敗しました: ${result.errors[0].message}`);
+        return;
+      }
+      window.localStorage.setItem(POINT_STORAGE_KEY, String(point));
+      setAdminMatchTime(getDefaultAdminMatchTime());
+      setAdminWinnerNickname("");
+      setAdminLoserNickname("");
       resetAfterCreate();
     } finally {
       setIsResultSubmitting(false);
@@ -247,7 +327,12 @@ export function useMatchResults(
     filteredResults,
     opponentNicknameOptions,
     editingOpponentNicknameOptions,
+    adminPlayerNicknameOptions,
+    adminLoserNicknameOptions,
     opponentNickname,
+    adminMatchTime,
+    adminWinnerNickname,
+    adminLoserNickname,
     point,
     isJbsRated,
     isResultSubmitting,
@@ -258,12 +343,16 @@ export function useMatchResults(
     isUpdatingResult,
     isDeletingResult,
     setOpponentNickname,
+    setAdminMatchTime,
+    setAdminWinnerNickname,
+    setAdminLoserNickname,
     setPoint,
     setIsJbsRated,
     setEditingOpponentNickname,
     setEditingPoint,
     setEditingIsJbsRated,
     createMatchResult,
+    createAdminMatchResult,
     startEditResult,
     cancelEditResult,
     updateMatchResult,

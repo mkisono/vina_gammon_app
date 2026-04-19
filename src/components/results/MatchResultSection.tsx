@@ -1,76 +1,133 @@
 import { Button, Heading, Text, View } from "@aws-amplify/ui-react";
 import type { Schema } from "../../../amplify/data/resource";
-import { MatchResultForm } from "./MatchResultForm";
-import { MatchResultTable } from "./MatchResultTable";
-import { MatchResultEditDialog } from "./MatchResultEditDialog";
+import { AdminMatchResultForm, type AdminMatchResultFormProps } from "./AdminMatchResultForm";
+import { MatchResultForm, type MatchResultFormProps } from "./MatchResultForm";
+import { MatchResultTable, type MatchResultTableProps } from "./MatchResultTable";
+import { MatchResultEditDialog, type MatchResultEditDialogProps } from "./MatchResultEditDialog";
 
-type MatchResultSectionProps = {
+type MatchResultEventContextProps = {
   currentEventId: string;
   currentEvent: Schema["Event"]["type"] | null;
   filteredResults: Array<Schema["MatchResult"]["type"]>;
-  isAdmin: boolean;
+};
+
+type MatchResultUserContextProps = {
+  isAdmin: true | false;
   currentUserId?: string;
   profileNicknameByUserId: Record<string, string>;
-  opponentNickname: string;
-  opponentNicknameOptions: string[];
-  editingOpponentNicknameOptions: string[];
+};
+
+type MatchResultCreateFormCommonProps = {
   point: number;
   isJbsRated: boolean;
   isResultSubmitting: boolean;
+};
+
+type MatchResultUserCreateFormProps = MatchResultCreateFormCommonProps & {
+  opponentNickname: string;
+  opponentNicknameOptions: string[];
+};
+
+type MatchResultAdminCreateFormProps = MatchResultCreateFormCommonProps & {
+  adminMatchTime: string;
+  adminWinnerNickname: string;
+  adminLoserNickname: string;
+  adminPlayerNicknameOptions: string[];
+  adminLoserNicknameOptions: string[];
+};
+
+type MatchResultEditFormProps = {
+  editingOpponentNicknameOptions: string[];
   editingResultId: string;
   editingOpponentNickname: string;
   editingPoint: number;
   editingIsJbsRated: boolean;
   isUpdatingResult: boolean;
   isDeletingResult: boolean;
-  onGoToHomePage: () => void;
-  onChangeOpponentNickname: (value: string) => void;
-  onChangePoint: (value: number) => void;
-  onChangeIsJbsRated: (value: boolean) => void;
-  onCreateMatchResult: () => void;
-  onStartEditResult: (result: Schema["MatchResult"]["type"]) => void;
-  onCancelEditResult: () => void;
-  onChangeEditingOpponentNickname: (value: string) => void;
-  onChangeEditingPoint: (value: number) => void;
-  onChangeEditingIsJbsRated: (value: boolean) => void;
-  onUpdateMatchResult: () => void;
-  onDeleteMatchResult: (resultId: string) => void;
 };
 
-export function MatchResultSection({
-  currentEventId,
-  currentEvent,
-  filteredResults,
-  isAdmin,
-  currentUserId,
-  profileNicknameByUserId,
-  opponentNickname,
-  opponentNicknameOptions,
-  editingOpponentNicknameOptions,
-  point,
-  isJbsRated,
-  isResultSubmitting,
-  editingResultId,
-  editingOpponentNickname,
-  editingPoint,
-  editingIsJbsRated,
-  isUpdatingResult,
-  isDeletingResult,
-  onGoToHomePage,
-  onChangeOpponentNickname,
-  onChangePoint,
-  onChangeIsJbsRated,
-  onCreateMatchResult,
-  onStartEditResult,
-  onCancelEditResult,
-  onChangeEditingOpponentNickname,
-  onChangeEditingPoint,
-  onChangeEditingIsJbsRated,
-  onUpdateMatchResult,
-  onDeleteMatchResult,
-}: MatchResultSectionProps) {
+type MatchResultActionProps = {
+  onGoToHomePage: () => void;
+  edit: Pick<
+    MatchResultEditDialogProps,
+    | "onChangeEditingOpponentNickname"
+    | "onChangeEditingPoint"
+    | "onChangeEditingIsJbsRated"
+    | "onUpdateMatchResult"
+    | "onCancelEditResult"
+  >;
+  table: Pick<MatchResultTableProps, "onStartEditResult" | "onDeleteMatchResult">;
+};
+
+type MatchResultUserActionProps = MatchResultActionProps & {
+  create: {
+    user: Pick<
+      MatchResultFormProps,
+      "onChangeOpponentNickname" | "onChangePoint" | "onChangeIsJbsRated" | "onCreateMatchResult"
+    >;
+  };
+};
+
+type MatchResultAdminActionProps = MatchResultActionProps & {
+  create: {
+    admin: Pick<
+      AdminMatchResultFormProps,
+      | "onChangeAdminMatchTime"
+      | "onChangeAdminWinnerNickname"
+      | "onChangeAdminLoserNickname"
+      | "onChangePoint"
+      | "onChangeIsJbsRated"
+      | "onCreateAdminMatchResult"
+    >;
+  };
+};
+
+type MatchResultSectionAdminProps = {
+  eventContext: MatchResultEventContextProps;
+  userContext: MatchResultUserContextProps & { isAdmin: true };
+  createForm: MatchResultAdminCreateFormProps;
+  editForm: MatchResultEditFormProps;
+  actions: MatchResultAdminActionProps;
+};
+
+type MatchResultSectionUserProps = {
+  eventContext: MatchResultEventContextProps;
+  userContext: MatchResultUserContextProps & { isAdmin: false };
+  createForm: MatchResultUserCreateFormProps;
+  editForm: MatchResultEditFormProps;
+  actions: MatchResultUserActionProps;
+};
+
+type MatchResultSectionProps = MatchResultSectionAdminProps | MatchResultSectionUserProps;
+
+const isAdminSectionProps = (
+  props: MatchResultSectionProps
+): props is MatchResultSectionAdminProps => {
+  return props.userContext.isAdmin;
+};
+
+export function MatchResultSection(props: MatchResultSectionProps) {
+  const { currentEventId, currentEvent, filteredResults } = props.eventContext;
+  const { currentUserId, profileNicknameByUserId } = props.userContext;
+  const isAdmin = props.userContext.isAdmin;
+  const { point, isJbsRated, isResultSubmitting } = props.createForm;
+  const {
+    editingOpponentNicknameOptions,
+    editingResultId,
+    editingOpponentNickname,
+    editingPoint,
+    editingIsJbsRated,
+    isUpdatingResult,
+    isDeletingResult,
+  } = props.editForm;
+  const {
+    onGoToHomePage,
+    edit,
+    table,
+  } = props.actions;
+
   const currentEventStatus = currentEvent?.status ?? "open";
-  const canCreateResult = currentEventStatus === "open";
+  const canCreateResult = isAdmin || currentEventStatus === "open";
   const registrationClosedMessage =
     currentEventStatus === "close"
       ? "このイベントは終了しました。試合結果の新規登録はできません。"
@@ -85,6 +142,30 @@ export function MatchResultSection({
   const lossCount = currentUserId
     ? filteredResults.filter((result) => result.loserUserId === currentUserId).length
     : 0;
+  const createFormNode = isAdminSectionProps(props) ? (
+    <AdminMatchResultForm
+      canCreateResult={canCreateResult}
+      adminMatchTime={props.createForm.adminMatchTime}
+      adminWinnerNickname={props.createForm.adminWinnerNickname}
+      adminLoserNickname={props.createForm.adminLoserNickname}
+      adminPlayerNicknameOptions={props.createForm.adminPlayerNicknameOptions}
+      adminLoserNicknameOptions={props.createForm.adminLoserNicknameOptions}
+      point={point}
+      isJbsRated={isJbsRated}
+      isResultSubmitting={isResultSubmitting}
+      {...props.actions.create.admin}
+    />
+  ) : (
+    <MatchResultForm
+      canCreateResult={canCreateResult}
+      opponentNickname={props.createForm.opponentNickname}
+      opponentNicknameOptions={props.createForm.opponentNicknameOptions}
+      point={point}
+      isJbsRated={isJbsRated}
+      isResultSubmitting={isResultSubmitting}
+      {...props.actions.create.user}
+    />
+  );
 
   return (
     <View marginTop="1.5rem">
@@ -103,21 +184,10 @@ export function MatchResultSection({
         </>
       ) : (
         <>
-          {!canCreateResult && (
+          {!isAdmin && !canCreateResult && (
             <Text marginTop="0.75rem">{registrationClosedMessage}</Text>
           )}
-          <MatchResultForm
-            canCreateResult={canCreateResult}
-            opponentNickname={opponentNickname}
-            opponentNicknameOptions={opponentNicknameOptions}
-            point={point}
-            isJbsRated={isJbsRated}
-            isResultSubmitting={isResultSubmitting}
-            onChangeOpponentNickname={onChangeOpponentNickname}
-            onChangePoint={onChangePoint}
-            onChangeIsJbsRated={onChangeIsJbsRated}
-            onCreateMatchResult={onCreateMatchResult}
-          />
+          {createFormNode}
           <MatchResultTable
             filteredResults={filteredResults}
             isAdmin={isAdmin}
@@ -127,8 +197,7 @@ export function MatchResultSection({
             profileNicknameByUserId={profileNicknameByUserId}
             editingResultId={editingResultId}
             isDeletingResult={isDeletingResult}
-            onStartEditResult={onStartEditResult}
-            onDeleteMatchResult={onDeleteMatchResult}
+            {...table}
           />
           <MatchResultEditDialog
             editingResult={editingResult}
@@ -138,11 +207,7 @@ export function MatchResultSection({
             editingPoint={editingPoint}
             editingIsJbsRated={editingIsJbsRated}
             isUpdatingResult={isUpdatingResult}
-            onChangeEditingOpponentNickname={onChangeEditingOpponentNickname}
-            onChangeEditingPoint={onChangeEditingPoint}
-            onChangeEditingIsJbsRated={onChangeEditingIsJbsRated}
-            onUpdateMatchResult={onUpdateMatchResult}
-            onCancelEditResult={onCancelEditResult}
+            {...edit}
           />
         </>
       )}

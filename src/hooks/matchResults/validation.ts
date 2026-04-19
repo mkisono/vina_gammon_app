@@ -22,6 +22,21 @@ type UpdateInputValidationParams = {
   hasEditingResult: boolean;
 };
 
+type AdminCreateInputValidationParams = {
+  isAdmin: boolean;
+  eventId: string;
+  event: Schema["Event"]["type"] | null | undefined;
+  adminMatchTime: string;
+  adminWinnerNickname: string;
+  adminLoserNickname: string;
+  adminPlayerNicknameOptions: string[];
+  adminLoserNicknameOptions: string[];
+  point: number;
+  isJbsRated: boolean;
+};
+
+const MATCH_TIME_HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 export const isValidPoint = (value: number): boolean => {
   return Number.isInteger(value) && value >= 1 && value <= 25 && value % 2 === 1;
 };
@@ -97,6 +112,55 @@ export const validateUpdateInput = ({
   }
   if (!updaterUserId) {
     return "ユーザー情報を取得できません。再ログインしてください。";
+  }
+  return null;
+};
+
+export const validateAdminCreateInput = ({
+  isAdmin,
+  eventId,
+  event,
+  adminMatchTime,
+  adminWinnerNickname,
+  adminLoserNickname,
+  adminPlayerNicknameOptions,
+  adminLoserNicknameOptions,
+  point,
+  isJbsRated,
+}: AdminCreateInputValidationParams): string | null => {
+  if (!isAdmin) {
+    return "管理者のみ実行できます。";
+  }
+  if (!eventId || !event) {
+    return "イベントページから登録してください。";
+  }
+  if (!adminMatchTime) {
+    return "時刻を入力してください。";
+  }
+  if (!MATCH_TIME_HHMM_RE.test(adminMatchTime)) {
+    return "時刻は HH:mm 形式で入力してください。";
+  }
+  if (!adminWinnerNickname) {
+    return "勝者を選択してください。";
+  }
+  if (!adminLoserNickname) {
+    return "敗者を選択してください。";
+  }
+  if (!adminPlayerNicknameOptions.includes(adminWinnerNickname)) {
+    return "勝者は登録済みユーザー一覧から選択してください。";
+  }
+  if (!adminLoserNicknameOptions.includes(adminLoserNickname)) {
+    return "敗者は登録済みユーザー一覧から選択してください。";
+  }
+  if (adminWinnerNickname === adminLoserNickname) {
+    return "勝者と敗者を同一ユーザーには指定できません。";
+  }
+  if (!isValidPoint(point)) {
+    return "ポイントは 1-25 の奇数で入力してください。";
+  }
+  const jbsError = validateJbsRatingConstraint(point, isJbsRated);
+  if (jbsError) {
+    return jbsError;
   }
   return null;
 };
