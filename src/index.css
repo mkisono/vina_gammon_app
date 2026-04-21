@@ -509,6 +509,29 @@ h2.amplify-heading {
   background: #f9fcff;
 }
 
+.leaderboard-th-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.leaderboard-th-sortable:hover {
+  background: #e8f3fb;
+}
+
+.leaderboard-th-active {
+  color: #1a6fa8;
+}
+
+.leaderboard-sort-icon {
+  margin-left: 0.3em;
+  font-size: 0.8em;
+  vertical-align: middle;
+}
+
+.leaderboard-sort-icon--inactive {
+  opacity: 0.35;
+}
+
 a {
   color: var(--color-primary);
   text-decoration: none;
