@@ -55,6 +55,19 @@ const schema = a.schema({
       allow.group("ADMIN").to(["read", "update", "delete"]),
     ]),
 
+  AuthMigrationStatus: a
+    .model({
+      userId: a.id().required(),
+      passwordMigratedAt: a.string(),
+      passkeyRegisteredAt: a.string(),
+      lastPromptedAt: a.string(),
+    })
+    .identifier(["userId"])
+    .authorization((allow) => [
+      allow.ownerDefinedIn("userId").to(["create", "read", "update", "delete"]),
+      allow.group("ADMIN").to(["read", "update"]),
+    ]),
+
   MatchResult: a
     .model({
       resultId: a.id().required(),

@@ -7,8 +7,81 @@
 ### 認証
 
 - ユーザー認証は Amazon Cognito で行う
-- 認証方式は email OTP とする
+- 認証方式は以下の優先順位で提供する
+  1. パスワード (PASSWORD) - 推奨
+  2. パスキー (WebAuthn) - オプション（パスワード設定後に追加登録）
+  3. メール OTP (EMAIL_OTP) - 後方互換性のため
 - refresh token の有効期限は 1年とする
+- サインイン画面では、メール OTP による新規登録オプションは表示しない（既存ユーザーの登録方式を維持するため）
+
+### 認証マイグレーション戦略
+
+#### 背景
+
+Email OTP のみの認証方式から、Password + Passkey を主とする認証方式への移行を行う。これにより以下のメリットが得られる：
+- ユーザーエクスペリエンスの向上（メール受信待ちが不要）
+- セキュリティの向上（パスキーは フィッシング耐性がある）
+- 運用効率の向上（Email OTP の信頼性依存から脱却）
+
+#### マイグレーション要件
+
+- Email OTP で既に登録済みのユーザーに対して、パスワード設定を強制する
+- ユーザーは初回ログイン後、セキュリティ設定画面でパスワード設定が必須
+- パスキー登録はオプションで、パスワード設定後に任意で追加可能
+- パスワード設定後は、Email OTP の利用も継続可能（後方互換性）
+- パスワード忘却時は、サインイン画面の「パスワードを忘れた場合」リンクから復旧可能
+
+#### ユーザーフロー
+
+1. **初回ログイン（Email OTP 既存ユーザー）**
+   - Email OTP でサインイン
+   - ホームページへアクセス → セキュリティ設定ページへリダイレクト
+
+2. **セキュリティ設定ページ（/security-setup）**
+   - Step 1: パスワード設定
+     - 新しいパスワードを入力して「パスワードを設定」ボタンを押す
+     - Cognito の `resetPassword` → `confirmResetPassword` フローで実行
+   - Step 2: パスキー登録（オプション）
+     - 「パスキーを登録」ボタンを押すと WebAuthn 登録フロー開始
+     - Cognito の `associateWebAuthnCredential` でパスキーを登録
+     - 既に登録済みの場合は「パスキーが登録済みです」と表示
+
+3. **ホームページ以降の利用**
+   - 右上のアカウントメニューから「セキュリティ設定」を選択して、パスキー追加登録が可能
+
+4. **パスワード忘却時の復旧**
+   - サインイン画面の「パスワードを忘れた場合」をクリック
+   - メールアドレスを入力して確認コード受取
+   - 新しいパスワードを設定
+
+#### マイグレーション状態管理
+
+**AuthMigrationStatus モデル**
+- 用途: ユーザー単位のマイグレーション状態を追跡する
+- 主な項目
+  - `userId` (string, PK): Cognito `sub` と紐づく内部ユーザーID
+  - `passwordMigratedAt` (timestamp): パスワード設定完了時刻
+  - `passkeyRegisteredAt` (timestamp): パスキー登録完了時刻
+  - `lastPromptedAt` (timestamp): 最後にセキュリティ設定の確認を促した時刻
+- アクセス制御
+  - 本人と管理者のみ読み取り・更新可能
+
+#### フロントエンド実装
+
+**useAuthMigrationStatus フック**
+- マイグレーション状態をフロントエンドで追跡する
+- 主な機能
+  - `userId` 取得後、非同期で `AuthMigrationStatus` レコードを取得
+  - パスワード設定状態（`passwordMigratedAt`）を検出
+  - 重複実行防止
+    - `hasPersistedRecord`: DB に実際にレコードが存在するかを追跡
+    - `resolvedUserId`: 既に状態を確認したユーザーIDを保持
+  - マイグレーション完了状態（`isMigrationStatusResolved`）を提供
+
+**ページガード（HomePage）**
+- ユーザーが初回ログイン時、パスワード未設定の場合は SecuritySetupPage へリダイレクト
+- ガード条件（競合状態を防止）
+  - `userId` が確定 AND `isMigrationStatusResolved` が true AND `isPasswordMigrated` が false
 
 ### ユーザーロール
 
@@ -130,6 +203,52 @@
   - 未ログインの場合は、ログイン / 新規登録 を選択する
     - ログイン を選択した場合は、ログイン完了後に結果の登録画面に遷移する
     - 新規登録 を選択した場合は、新しいユーザーを登録し、登録完了後に結果の登録画面に遷移する
+
+#### セキュリティ設定（SecuritySetupPage）
+
+- 用途: Email OTP で登録済みのユーザーが、パスワードとパスキーを設定する
+- アクセス条件
+  - ホームページでリダイレクト: パスワード未設定ユーザーが初回ログイン時に強制遷移
+  - メニュー経由: 右上のアカウントメニューから「セキュリティ設定」を選択してアクセス（パスキー追加登録用）
+- 画面構成
+
+##### Step 1: パスワード設定
+
+- 表示条件: `passwordMigratedAt` が null の場合、常に表示
+- 入力項目
+  - 新しいパスワード (required)
+    - パスワード強度要件: Cognito のデフォルト要件に従う
+  - パスワード確認 (required)
+    - 2つのパスワード入力欄が一致することを検証する
+- 操作
+  - 「パスワードを設定」ボタンをクリック
+    - Cognito の `resetPassword` API を呼び出し、一時パスワードをクリア
+    - `confirmResetPassword` API でユーザー設定のパスワードを確定
+    - `AuthMigrationStatus.passwordMigratedAt` を現在時刻で更新
+    - 成功時は Step 2 を表示
+- エラーハンドリング
+  - パスワード不一致: クライアント側で検証エラーを表示
+  - パスワード強度不足: Cognito エラーメッセージを表示
+
+##### Step 2: パスキー登録（オプション）
+
+- 表示条件
+  - Step 1 のパスワード設定が完了（`passwordMigratedAt` が設定）した場合、表示
+  - `passkeyRegisteredAt` が null の場合、「パスキーを登録」ボタンを表示
+  - `passkeyRegisteredAt` が設定済みの場合、「パスキーが登録済みです」と表示（ボタンなし）
+- 操作
+  - 「パスキーを登録」ボタンをクリック
+    - Cognito の `associateWebAuthnCredential` API を呼び出し、WebAuthn 登録フロー開始
+    - ユーザーは利用デバイス（指紋認証、顔認証、セキュリティキーなど）を選択
+    - 登録完了後、`AuthMigrationStatus.passkeyRegisteredAt` を現在時刻で更新
+    - 成功メッセージを表示
+- エラーハンドリング
+  - WebAuthn 非対応環境: エラーメッセージを表示し、パスキー登録をスキップ可能
+  - ユーザーがキャンセル: メッセージを表示し、後で登録可能（ホームページのメニューから再度アクセス可能）
+
+- アカウントメニューとの連携
+  - セキュリティ設定ページ内のメニュー（右上のアカウントメニュー）には「セキュリティ設定」リンクを表示
+  - これにより、パスキー追加登録画面への遷移が可能
 
 #### 試合結果
 
@@ -298,6 +417,22 @@
   - `userId` (string, PK): Cognito `sub` と紐づく内部ユーザーID
   - `realName` (string, required): 非公開情報(本人・管理者のみ参照可)
 
+#### AuthMigrationStatus
+
+- 用途: ユーザーの認証マイグレーション状態を追跡する
+- 主な項目
+  - `userId` (string, PK): Cognito `sub` と紐づく内部ユーザーID
+  - `passwordMigratedAt` (timestamp, optional): パスワード設定完了時刻(ISO 8601形式)
+  - `passkeyRegisteredAt` (timestamp, optional): パスキー登録完了時刻(ISO 8601形式)
+  - `lastPromptedAt` (timestamp, optional): 最後にセキュリティ設定確認を促した時刻
+- アクセス制御
+  - 読み取り: 本人と管理者のみ
+  - 作成・更新: 本人と管理者のみ
+- 用途詳細
+  - `passwordMigratedAt` が `null` の場合は、ユーザーはセキュリティ設定ページへリダイレクトされる
+  - `passwordMigratedAt` が設定されている場合、ユーザーはホームページなど通常ページへアクセス可能
+  - `passkeyRegisteredAt` が `null` の場合、セキュリティ設定ページでパスキー登録が提案される
+
 #### MatchResult
 
 - 用途: 試合結果を管理する
@@ -389,6 +524,7 @@
 
 - `/` : ホーム
 - `/profile` : プロフィール編集
+- `/security-setup` : セキュリティ設定（パスワード＋パスキー登録ページ）
 - `/events/create` : イベント作成(管理者向け)
 - `/events/:eventId` : イベント詳細(試合結果登録・イベント内ランキング)
 

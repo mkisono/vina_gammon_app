@@ -42,6 +42,7 @@ export function EventCreatePage({ signOut }: EventCreatePageProps) {
         onGoHome={() => navigate("/")}
         onGoEventCreate={() => navigate("/events/create")}
         onGoProfile={() => navigate("/profile")}
+        onGoSecuritySetup={() => navigate("/security-setup")}
         onSignOut={signOut}
       />
 

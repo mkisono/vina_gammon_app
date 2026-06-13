@@ -5,3 +5,4 @@ export { useProfiles } from "./useProfiles";
 export { useEvents } from "./useEvents";
 export { useMatchResults } from "./useMatchResults";
 export { useLeaderboard } from "./useLeaderboard";
+export { useAuthMigrationStatus } from "./useAuthMigrationStatus";

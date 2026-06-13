@@ -44,6 +44,15 @@ body {
   box-shadow: var(--shadow-soft);
 }
 
+/* In sign-up tab, keep only password-based account creation button. */
+[data-amplify-authenticator-signup] fieldset > button[type="submit"] + div {
+  display: none !important;
+}
+
+[data-amplify-authenticator-signup] fieldset > button[type="submit"] ~ button[type="button"] {
+  display: none !important;
+}
+
 .amplify-heading {
   color: var(--color-primary);
   letter-spacing: 0.01em;
