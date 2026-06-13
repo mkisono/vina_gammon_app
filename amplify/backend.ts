@@ -17,6 +17,17 @@ for (const table of Object.values(amplifyDynamoDbTables)) {
   table.pointInTimeRecoveryEnabled = true;
 }
 
+// Override Cognito password policy: special characters are optional.
+backend.auth.resources.cfnResources.cfnUserPool.policies = {
+  passwordPolicy: {
+    minimumLength: 8,
+    requireUppercase: true,
+    requireLowercase: true,
+    requireNumbers: true,
+    requireSymbols: false,
+  },
+};
+
 // --- DynamoDB table references ---
 const matchResultTable = backend.data.resources.tables['MatchResult'];
 const eventTable = backend.data.resources.tables['Event'];
