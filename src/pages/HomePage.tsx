@@ -21,6 +21,7 @@ type HomePageProps = {
 };
 
 export function HomePage({ signOut }: HomePageProps) {
+  const adminBasePath = "/admin";
   const fiscalYearStartYear = getFiscalYearStartYear();
   const navigate = useNavigate();
   const { isAdmin } = useAuthUser();
@@ -57,7 +58,7 @@ export function HomePage({ signOut }: HomePageProps) {
     if (!canDecideSecurity || isPasswordMigrated) {
       return;
     }
-    navigate("/security-setup", { replace: true });
+    navigate(`${adminBasePath}/security-setup`, { replace: true });
   }, [canDecideSecurity, isPasswordMigrated, navigate]);
 
   // 初回マウント時のみ、プロファイル初期設定が必須の場合プロファイルページへリダイレクト
@@ -65,7 +66,7 @@ export function HomePage({ signOut }: HomePageProps) {
     if (!canDecideSecurity || !isPasswordMigrated || !canDecideProfile || !profileRequired) {
       return;
     }
-    navigate("/profile", { replace: true });
+    navigate(`${adminBasePath}/profile`, { replace: true });
   }, [canDecideSecurity, isPasswordMigrated, canDecideProfile, profileRequired, navigate]);
 
   // 読み込み完了前は判定を保留する。
@@ -83,7 +84,7 @@ export function HomePage({ signOut }: HomePageProps) {
   }
 
   const handleOpenEventPage = (eventId: string) => {
-    navigate(`/events/${encodeURIComponent(eventId)}`);
+    navigate(`${adminBasePath}/events/${encodeURIComponent(eventId)}`);
   };
 
   const displayedEvents = isAdmin
@@ -94,10 +95,10 @@ export function HomePage({ signOut }: HomePageProps) {
     <View padding="2rem">
       <AppHeader
         isAdmin={isAdmin}
-        onGoHome={() => navigate("/")}
-        onGoEventCreate={() => navigate("/events/create")}
-        onGoProfile={() => navigate("/profile")}
-        onGoSecuritySetup={() => navigate("/security-setup")}
+        onGoHome={() => navigate(adminBasePath)}
+        onGoEventCreate={() => navigate(`${adminBasePath}/events/create`)}
+        onGoProfile={() => navigate(`${adminBasePath}/profile`)}
+        onGoSecuritySetup={() => navigate(`${adminBasePath}/security-setup`)}
         onSignOut={signOut}
       />
 

@@ -11,6 +11,7 @@ type EventCreatePageProps = {
 };
 
 export function EventCreatePage({ signOut }: EventCreatePageProps) {
+  const adminBasePath = "/admin";
   const navigate = useNavigate();
   const { isAdmin } = useAuthUser();
   const { userId, isLoading } = useCurrentUser();
@@ -39,10 +40,10 @@ export function EventCreatePage({ signOut }: EventCreatePageProps) {
     <View padding="2rem">
       <AppHeader
         isAdmin={isAdmin}
-        onGoHome={() => navigate("/")}
-        onGoEventCreate={() => navigate("/events/create")}
-        onGoProfile={() => navigate("/profile")}
-        onGoSecuritySetup={() => navigate("/security-setup")}
+        onGoHome={() => navigate(adminBasePath)}
+        onGoEventCreate={() => navigate(`${adminBasePath}/events/create`)}
+        onGoProfile={() => navigate(`${adminBasePath}/profile`)}
+        onGoSecuritySetup={() => navigate(`${adminBasePath}/security-setup`)}
         onSignOut={signOut}
       />
 

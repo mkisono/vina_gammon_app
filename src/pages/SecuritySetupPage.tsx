@@ -24,6 +24,7 @@ type SecuritySetupPageProps = {
 };
 
 export function SecuritySetupPage({ signOut }: SecuritySetupPageProps) {
+  const adminBasePath = "/admin";
   const navigate = useNavigate();
   const { isAdmin } = useAuthUser();
   const { userId, email, isLoading } = useCurrentUser();
@@ -135,10 +136,10 @@ export function SecuritySetupPage({ signOut }: SecuritySetupPageProps) {
 
   const handleContinueWithoutPasskey = () => {
     if (!hasProfile) {
-      navigate("/profile", { replace: true });
+      navigate(`${adminBasePath}/profile`, { replace: true });
       return;
     }
-    navigate("/", { replace: true });
+    navigate(adminBasePath, { replace: true });
   };
 
   if (!isDecisionReady) {
@@ -149,10 +150,10 @@ export function SecuritySetupPage({ signOut }: SecuritySetupPageProps) {
     <View padding="2rem">
       <AppHeader
         isAdmin={isAdmin}
-        onGoHome={() => navigate("/")}
-        onGoEventCreate={() => navigate("/events/create")}
-        onGoProfile={() => navigate("/profile")}
-        onGoSecuritySetup={() => navigate("/security-setup")}
+        onGoHome={() => navigate(adminBasePath)}
+        onGoEventCreate={() => navigate(`${adminBasePath}/events/create`)}
+        onGoProfile={() => navigate(`${adminBasePath}/profile`)}
+        onGoSecuritySetup={() => navigate(`${adminBasePath}/security-setup`)}
         onSignOut={signOut}
       />
 

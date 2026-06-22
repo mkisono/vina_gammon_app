@@ -12,6 +12,7 @@ type ProfilePageProps = {
 };
 
 export function ProfilePage({ signOut }: ProfilePageProps) {
+  const adminBasePath = "/admin";
   const navigate = useNavigate();
   const { isAdmin } = useAuthUser();
   const { userId, isLoading } = useCurrentUser();
@@ -52,7 +53,7 @@ export function ProfilePage({ signOut }: ProfilePageProps) {
       && hasProfile
       && !isSavingProfile
     ) {
-      navigate("/", { replace: true });
+      navigate(adminBasePath, { replace: true });
     }
   }, [canDecideProfile, hasProfile, isSavingProfile, navigate]);
 
@@ -64,10 +65,10 @@ export function ProfilePage({ signOut }: ProfilePageProps) {
     <View padding="2rem">
       <AppHeader
         isAdmin={isAdmin}
-        onGoHome={() => navigate("/")}
-        onGoEventCreate={() => navigate("/events/create")}
-        onGoProfile={() => navigate("/profile")}
-        onGoSecuritySetup={() => navigate("/security-setup")}
+        onGoHome={() => navigate(adminBasePath)}
+        onGoEventCreate={() => navigate(`${adminBasePath}/events/create`)}
+        onGoProfile={() => navigate(`${adminBasePath}/profile`)}
+        onGoSecuritySetup={() => navigate(`${adminBasePath}/security-setup`)}
         onSignOut={signOut}
       />
 
