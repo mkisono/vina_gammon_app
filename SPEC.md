@@ -7,6 +7,9 @@
 ### 認証
 
 - ユーザー認証は Amazon Cognito で行う
+- ユーザー自身によるサインアップ機能は提供しない
+- 管理者ログインフォームにはサインアップ導線を表示しない
+- 新しい利用者情報は管理者が管理画面から作成する
 - 認証方式は以下の優先順位で提供する
   1. パスワード (PASSWORD) - 推奨
   2. パスキー (WebAuthn) - オプション（パスワード設定後に追加登録）
@@ -85,78 +88,72 @@ Email OTP のみの認証方式から、Password + Passkey を主とする認証
 
 ### ユーザーロール
 
-- ユーザーロールは以下の2種類を用意する
-  - 一般ユーザー
-  - 管理者
+- 利用者ロールは以下の2種類を用意する
+  - 利用者（認証不要）
+  - 管理者（認証必須）
 
 ### 権限設計
 
 ロールごとの操作権限は以下とする。
 
-| 操作 | 一般ユーザー | 管理者 |
+| 操作 | 利用者（認証不要） | 管理者（認証必須） |
 | --- | --- | --- |
+| トップページの参照 | 可 | 可 |
+| イベントページの参照 | 可 | 可 |
 | イベント作成ページへの導線(アカウントメニュー) | 非表示 | 表示 |
-| イベント作成ページの実行 | 不可 | 可 |
+| イベント作成 | 不可 | 可 |
 | イベント状態(open/close)の変更 | 不可 | 可 |
-| イベントページ閲覧 | 可 | 可 |
-| 自分のユーザー情報(ニックネーム/本名)登録・更新 | 可 | 可 |
-| 試合結果の新規登録 | 可 | 可 |
-| 試合結果の編集(自分が登録した結果) | 可 | 可 |
-| 試合結果の編集(他ユーザーが登録した結果) | 不可 | 可 |
+| 利用者一覧の表示 | 不可 | 可 |
+| 利用者の新規作成（本名/ニックネーム設定） | 不可 | 可 |
+| 利用者情報の更新（本名/ニックネーム） | 不可 | 可 |
+| 試合結果の入力 | 不可 | 可 |
+| 試合結果の編集 | 不可 | 可 |
 | 試合結果の削除 | 不可 | 可 |
 | 集計結果の閲覧(イベント/1年/All time) | 可 | 可 |
 
 #### 補足ルール
 
-- 管理者は、全イベント・全試合結果に対して編集権限を持つ
-- 一般ユーザーは、自分が登録した試合結果のみ編集できる
-- 本名は非公開情報として扱い、本人と管理者のみ参照・更新できる
+- 管理者は、全イベント・全試合結果・全利用者情報に対して編集権限を持つ
+- 本名は非公開情報として扱い、管理者のみ参照・更新できる
 - 画面上のアカウントメニューには、管理者ログイン時のみ「イベント作成」を表示する
 - イベント作成は独立ページ(`/events/create`)で実行する
 - テスト用途のイベントは `Event.isTest = true` で管理する
 - `Event.isTest` と `Event.eventDate` は作成後に変更しない運用とする
+- 利用者自身によるサインアップ機能は提供しない
+- 管理者ログインフォームにはサインアップ導線を表示しない
+- 新規利用者は管理者が作成し、Cognito と紐づかない Profile として保持する
+- 既存の Cognito ユーザーと既存データは削除しない
 
 ### API認可ルール
 
-- 認証済みユーザーのみAPIを利用できる
+- 公開参照系APIは未認証利用者も利用できる
 - 管理者ロール判定は Cognito のグループクレーム(`ADMIN`)で行う
 - 認可設計は model-level を基本とする
-  - `Event`: 読み取りは認証済みユーザー、作成・更新・削除は管理者のみ
-  - `PublicProfile`: 作成・読み取りは認証済みユーザー、更新は本人または管理者のみ
-  - `NicknameRegistry`: 作成・読み取り・更新・削除は本人または管理者のみ
-  - `PrivateProfile`: 作成は認証済みユーザー、読み取り・更新は本人または管理者のみ
-  - `MatchResult`: 読み取り・作成は認証済みユーザー、更新は作成者本人または管理者のみ
-  - `FiscalYearLeaderboard`: 読み取りは認証済みユーザー、更新は集計Lambdaまたは管理者のみ
+  - `Event`: 読み取りは未認証/認証済みともに可、作成・更新・削除は管理者のみ
+  - `PublicProfile`: 読み取りは未認証/認証済みともに可、作成・更新・削除は管理者のみ
+  - `NicknameRegistry`: 作成・更新・削除は管理者のみ
+  - `PrivateProfile`: 読み取り・作成・更新・削除は管理者のみ
+  - `MatchResult`: 読み取りは未認証/認証済みともに可、作成・更新・削除は管理者のみ
+  - `FiscalYearLeaderboard`: 読み取りは未認証/認証済みともに可、更新は集計Lambdaまたは管理者のみ
   - `EventUserContribution`: 作成・読み取り・更新・削除は集計Lambdaまたは管理者のみ
 - field-level の認可は原則として持たず、モデル単位で操作権限を管理する
-- 一般ユーザーが更新可能なプロフィール項目は、`PublicProfile.nickname` と `PrivateProfile.realName` のみとする
-- `MatchResult` の owner 判定は作成者ではなく `playerUserId`(勝者)を基準とする
-  - 管理者の代理登録であっても、`playerUserId` のユーザーは owner として更新可能
+- 新規作成される利用者 Profile は `identityType = admin_managed` とし、Cognito の `sub` に依存しない `userId` を採用する
+- 既存レコードに `identityType` が存在しない場合は `cognito_user` 相当として扱う
 
-| API操作 | 一般ユーザー | 管理者 | 認可条件 |
+| API操作 | 利用者（認証不要） | 管理者 | 認可条件 |
 | --- | --- | --- | --- |
 | Event作成 | 不可 | 可 | `Event` モデルに対して `group contains ADMIN` |
 | Event更新(任意項目) | 不可 | 可 | `Event` モデルに対して `group contains ADMIN` |
 | Event削除 | 不可 | 可 | `Event` モデルに対して `group contains ADMIN` |
-| Event取得(単体/一覧) | 可 | 可 | `Event` モデルの read を認証済みユーザーに許可 |
-| PublicProfile作成 | 可 | 可 | `PublicProfile` モデルの create を認証済みユーザーに許可。`userId = Cognito sub` |
-| PublicProfile更新(自分) | 可 | 可 | `PublicProfile` モデルに対して owner。更新可能項目は `nickname` のみ |
-| PublicProfile更新(他人) | 不可 | 可 | `PublicProfile` モデルに対して `group contains ADMIN` |
+| Event取得(単体/一覧) | 可 | 可 | `Event` モデルの read を guest + user に許可 |
+| PublicProfile作成 | 不可 | 可 | `PublicProfile` モデルに対して `group contains ADMIN` |
+| PublicProfile更新 | 不可 | 可 | `PublicProfile` モデルに対して `group contains ADMIN` |
 | PublicProfile削除 | 不可 | 可 | `PublicProfile` モデルに対して `group contains ADMIN` |
-| NicknameRegistry作成(自分のニックネーム予約) | 可 | 可 | `NicknameRegistry` モデルに対して owner (`userId = requesterUserId`) |
-| NicknameRegistry取得/更新/削除(自分) | 可 | 可 | `NicknameRegistry` モデルに対して owner (`userId = requesterUserId`) |
-| NicknameRegistry取得/更新/削除(他人) | 不可 | 可 | `NicknameRegistry` モデルに対して `group contains ADMIN` |
-| PrivateProfile作成 | 可 | 可 | `PrivateProfile` モデルの create を認証済みユーザーに許可。`userId = Cognito sub` |
-| PrivateProfile取得(自分) | 可 | 可 | `PrivateProfile` モデルに対して owner read |
-| PrivateProfile取得(他人) | 不可 | 可 | `PrivateProfile` モデルに対して `group contains ADMIN` |
-| PrivateProfile更新(自分) | 可 | 可 | `PrivateProfile` モデルに対して owner。更新可能項目は `realName` のみ |
-| PrivateProfile更新(他人) | 不可 | 可 | `PrivateProfile` モデルに対して `group contains ADMIN` |
-| PrivateProfile削除 | 不可 | 可 | `PrivateProfile` モデルに対して `group contains ADMIN` |
-| MatchResult作成 | 可 | 可 | `MatchResult` モデルの create を認証済みユーザーに許可。一般ユーザーは `playerUserId = requesterUserId`、管理者は `playerUserId` / `loserUserId` / `matchTime` を指定して代理登録可 |
-| MatchResult更新(自分が作成) | 可 | 可 | `MatchResult` モデルに対して owner (`playerUserId = requesterUserId`) |
-| MatchResult更新(他人が作成) | 不可 | 可 | `MatchResult` モデルに対して `group contains ADMIN` |
-| MatchResult削除 | 不可 | 可 | `MatchResult` モデルに対して `group contains ADMIN` |
-| 集計取得(イベント/1年/All time) | 可 | 可 | 集計対象モデル (`Event`, `PublicProfile`, `MatchResult`) の read を認証済みユーザーに許可 |
+| NicknameRegistry作成/更新/削除 | 不可 | 可 | `NicknameRegistry` モデルに対して `group contains ADMIN` |
+| PrivateProfile作成/取得/更新/削除 | 不可 | 可 | `PrivateProfile` モデルに対して `group contains ADMIN` |
+| MatchResult作成/更新/削除 | 不可 | 可 | `MatchResult` モデルに対して `group contains ADMIN` |
+| MatchResult取得(単体/一覧) | 可 | 可 | `MatchResult` モデルの read を guest + user に許可 |
+| 集計取得(イベント/1年/All time) | 可 | 可 | 集計対象モデル (`Event`, `PublicProfile`, `MatchResult`) の read を guest + user に許可 |
 
 ### 機能要件
 
@@ -199,10 +196,9 @@ Email OTP のみの認証方式から、Password + Passkey を主とする認証
   - ニックネーム: 対戦相手に表示される名前
   - 本名: 管理用の非公開情報
 - イベントページにアクセスしたとき、ユーザーは以下のいずれかの操作を行う
-  - ログイン済みの場合は、既存のユーザーを選択するステップを省略して結果の登録画面に遷移する
-  - 未ログインの場合は、ログイン / 新規登録 を選択する
-    - ログイン を選択した場合は、ログイン完了後に結果の登録画面に遷移する
-    - 新規登録 を選択した場合は、新しいユーザーを登録し、登録完了後に結果の登録画面に遷移する
+  - 未ログイン利用者は、トップページとイベントページを参照できる
+  - 管理者のみログインし、管理操作（イベント作成・利用者管理・試合結果の入力/編集/削除）を行う
+  - 新規利用者の登録は、管理者が管理画面から実施する
 
 #### セキュリティ設定（SecuritySetupPage）
 
