@@ -8,12 +8,13 @@ import { getFiscalYearStartYear } from "../lib/leaderboard";
 export function PublicHomePage() {
   const navigate = useNavigate();
   const fiscalYearStartYear = getFiscalYearStartYear();
-  const { sortedEvents, eventIsTestById } = useEvents(true);
+  const { sortedEvents, eventIsTestById } = useEvents({ enabled: true, realTime: false });
   const { rows: fiscalYearRows } = useLeaderboard({
     scope: "FISCAL_YEAR",
     fiscalYearStartYear,
     eventIsTestById,
     enabled: true,
+    realTime: false,
   });
 
   return (

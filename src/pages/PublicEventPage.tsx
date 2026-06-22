@@ -13,9 +13,12 @@ export function PublicEventPage() {
   const { eventId: encodedEventId } = useParams<{ eventId: string }>();
   const currentEventId = encodedEventId ? decodeURIComponent(encodedEventId) : "";
 
-  const { eventMap } = useEvents(true);
-  const { profiles } = useProfiles(true);
-  const { results } = useMatchResultsSubscription(currentEventId, Boolean(currentEventId));
+  const { eventMap } = useEvents({ enabled: true, realTime: false });
+  const { profiles } = useProfiles({ enabled: true, realTime: false });
+  const { results } = useMatchResultsSubscription(currentEventId, {
+    enabled: Boolean(currentEventId),
+    realTime: false,
+  });
 
   const currentEvent = useMemo(() => {
     if (!currentEventId) {
