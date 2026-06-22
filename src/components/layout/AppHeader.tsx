@@ -6,7 +6,7 @@ type AppHeaderProps = {
   onGoHome: () => void;
   onGoProfile: () => void;
   onGoEventCreate?: () => void;
-  onGoSecuritySetup?: () => void;
+  onGoUserManagement?: () => void;
   onSignOut?: () => void;
 };
 
@@ -15,7 +15,7 @@ export function AppHeader({
   onGoHome,
   onGoProfile,
   onGoEventCreate,
-  onGoSecuritySetup,
+  onGoUserManagement,
   onSignOut,
 }: AppHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -57,9 +57,9 @@ export function AppHeader({
     onGoEventCreate?.();
   };
 
-  const handleGoSecuritySetup = () => {
+  const handleGoUserManagement = () => {
     setIsMenuOpen(false);
-    onGoSecuritySetup?.();
+    onGoUserManagement?.();
   };
 
   return (
@@ -107,14 +107,14 @@ export function AppHeader({
                 イベント作成
               </button>
             )}
+            {isAdmin && onGoUserManagement && (
+              <button type="button" className="appbar-menu-item" onClick={handleGoUserManagement}>
+                利用者管理
+              </button>
+            )}
             <button type="button" className="appbar-menu-item" onClick={handleGoProfile}>
               プロフィール編集
             </button>
-            {onGoSecuritySetup && (
-              <button type="button" className="appbar-menu-item" onClick={handleGoSecuritySetup}>
-                セキュリティ設定
-              </button>
-            )}
             <button type="button" className="appbar-menu-item" onClick={handleSignOut}>
               サインアウト
             </button>

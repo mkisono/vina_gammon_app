@@ -7,7 +7,8 @@ import { HomePage } from "./pages/HomePage";
 import { EventPage } from "./pages/EventPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { EventCreatePage } from "./pages/EventCreatePage";
-import { SecuritySetupPage } from "./pages/SecuritySetupPage.tsx";
+import { AdminUsersPage } from "./pages/AdminUsersPage";
+import { useAuthUser } from "./hooks";
 
 type AuthenticatedContentProps = {
   signOut?: () => void;
@@ -26,10 +27,20 @@ function SignInFooter() {
 }
 
 function AuthenticatedAdminContent({ signOut, user }: AuthenticatedContentProps) {
+  const { isAdmin, isLoadingAuthUser } = useAuthUser();
+
+  if (isLoadingAuthUser) {
+    return null;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
   return (
     <Routes>
       <Route path="/" element={<HomePage signOut={signOut} user={user} />} />
-      <Route path="/security-setup" element={<SecuritySetupPage signOut={signOut} user={user} />} />
+      <Route path="/users" element={<AdminUsersPage signOut={signOut} user={user} />} />
       <Route path="/profile" element={<ProfilePage signOut={signOut} user={user} />} />
       <Route path="/events/create" element={<EventCreatePage signOut={signOut} user={user} />} />
       <Route path="/events/:eventId" element={<EventPage signOut={signOut} user={user} />} />

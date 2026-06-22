@@ -8,7 +8,6 @@ import { LeaderboardSection } from "../components/results/LeaderboardSection";
 import { getFiscalYearStartYear } from "../lib/leaderboard";
 import {
   useAuthUser,
-  useAuthMigrationStatus,
   useCurrentUser,
   useProfile,
   useEvents,
@@ -27,11 +26,6 @@ export function HomePage({ signOut }: HomePageProps) {
   const { isAdmin } = useAuthUser();
   const { userId, isLoading } = useCurrentUser();
   const isDataReady = !isLoading && Boolean(userId);
-  const {
-    isPasswordMigrated,
-    isLoadingMigrationStatus,
-    isMigrationStatusResolved,
-  } = useAuthMigrationStatus(userId);
   const {
     hasProfile,
     isLoadingProfile,
@@ -52,29 +46,17 @@ export function HomePage({ signOut }: HomePageProps) {
 
   const profileRequired = !hasProfile;
   const canDecideProfile = !isLoading && !isLoadingProfile;
-  const canDecideSecurity = !isLoading && !isLoadingMigrationStatus && isMigrationStatusResolved;
-
-  useEffect(() => {
-    if (!canDecideSecurity || isPasswordMigrated) {
-      return;
-    }
-    navigate(`${adminBasePath}/security-setup`, { replace: true });
-  }, [canDecideSecurity, isPasswordMigrated, navigate]);
 
   // 初回マウント時のみ、プロファイル初期設定が必須の場合プロファイルページへリダイレクト
   useEffect(() => {
-    if (!canDecideSecurity || !isPasswordMigrated || !canDecideProfile || !profileRequired) {
+    if (!canDecideProfile || !profileRequired) {
       return;
     }
     navigate(`${adminBasePath}/profile`, { replace: true });
-  }, [canDecideSecurity, isPasswordMigrated, canDecideProfile, profileRequired, navigate]);
+  }, [canDecideProfile, profileRequired, navigate]);
 
   // 読み込み完了前は判定を保留する。
-  if (!canDecideSecurity || !canDecideProfile) {
-    return null;
-  }
-
-  if (!isPasswordMigrated) {
+  if (!canDecideProfile) {
     return null;
   }
 
@@ -97,8 +79,8 @@ export function HomePage({ signOut }: HomePageProps) {
         isAdmin={isAdmin}
         onGoHome={() => navigate(adminBasePath)}
         onGoEventCreate={() => navigate(`${adminBasePath}/events/create`)}
+        onGoUserManagement={() => navigate(`${adminBasePath}/users`)}
         onGoProfile={() => navigate(`${adminBasePath}/profile`)}
-        onGoSecuritySetup={() => navigate(`${adminBasePath}/security-setup`)}
         onSignOut={signOut}
       />
 
