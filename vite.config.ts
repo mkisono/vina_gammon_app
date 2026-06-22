@@ -10,4 +10,10 @@ export default defineConfig({
   preview: {
     // Preview server uses middlewareMode for testing
   },
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.ts",
+    clearMocks: true,
+    globals: false,
+  },
 })
