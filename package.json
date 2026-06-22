@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "test": "vitest",
     "test:run": "vitest run",
+    "phase8:preflight": "node ./scripts/phase8-preflight.mjs",
+    "check:release": "npm run lint && npm run test:run && npm run build && npm run phase8:preflight",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
