@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../amplify/data/resource";
 import type { EventStatus } from "../lib/schemaTypes";
+import { fetchAllPages } from "./fetchAllPages";
 
 const client = generateClient<Schema>();
 
@@ -30,7 +31,14 @@ type UseEventsReturn = {
   updateEventStatus: (eventId: string, status: EventStatus) => Promise<void>;
 };
 
-export function useEvents(enabled = true): UseEventsReturn {
+type UseEventsOptions = {
+  enabled?: boolean;
+  realTime?: boolean;
+};
+
+export function useEvents(options: boolean | UseEventsOptions = true): UseEventsReturn {
+  const enabled = typeof options === "boolean" ? options : options.enabled ?? true;
+  const realTime = typeof options === "boolean" ? options : options.realTime ?? true;
   const [events, setEvents] = useState<Array<Schema["Event"]["type"]>>([]);
   const [eventName, setEventName] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -44,11 +52,32 @@ export function useEvents(enabled = true): UseEventsReturn {
       return;
     }
 
+    if (!realTime) {
+      let cancelled = false;
+      const fetchEvents = async () => {
+        try {
+          const items = await fetchAllPages((nextToken) =>
+            client.models.Event.list({ authMode: "iam", nextToken })
+          );
+          if (!cancelled) {
+            setEvents(items);
+          }
+        } catch (error) {
+          console.error("Failed to fetch events.", error);
+        }
+      };
+
+      void fetchEvents();
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const sub = client.models.Event.observeQuery().subscribe({
       next: ({ items }) => setEvents([...items]),
     });
     return () => sub.unsubscribe();
-  }, [enabled]);
+  }, [enabled, realTime]);
 
   const sortedEvents = useMemo(
     () =>

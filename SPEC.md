@@ -7,156 +7,87 @@
 ### 認証
 
 - ユーザー認証は Amazon Cognito で行う
-- 認証方式は以下の優先順位で提供する
-  1. パスワード (PASSWORD) - 推奨
-  2. パスキー (WebAuthn) - オプション（パスワード設定後に追加登録）
-  3. メール OTP (EMAIL_OTP) - 後方互換性のため
+- ユーザー自身によるサインアップ機能は提供しない
+- 管理者ログインフォームにはサインアップ導線を表示しない
+- 新しい利用者情報は管理者が管理画面から作成する
+- 管理者ログインはパスワード認証を基本とする
 - refresh token の有効期限は 1年とする
-- サインイン画面では、メール OTP による新規登録オプションは表示しない（既存ユーザーの登録方式を維持するため）
 
-### 認証マイグレーション戦略
+### 認証運用方針
 
-#### 背景
-
-Email OTP のみの認証方式から、Password + Passkey を主とする認証方式への移行を行う。これにより以下のメリットが得られる：
-- ユーザーエクスペリエンスの向上（メール受信待ちが不要）
-- セキュリティの向上（パスキーは フィッシング耐性がある）
-- 運用効率の向上（Email OTP の信頼性依存から脱却）
-
-#### マイグレーション要件
-
-- Email OTP で既に登録済みのユーザーに対して、パスワード設定を強制する
-- ユーザーは初回ログイン後、セキュリティ設定画面でパスワード設定が必須
-- パスキー登録はオプションで、パスワード設定後に任意で追加可能
-- パスワード設定後は、Email OTP の利用も継続可能（後方互換性）
-- パスワード忘却時は、サインイン画面の「パスワードを忘れた場合」リンクから復旧可能
-
-#### ユーザーフロー
-
-1. **初回ログイン（Email OTP 既存ユーザー）**
-   - Email OTP でサインイン
-   - ホームページへアクセス → セキュリティ設定ページへリダイレクト
-
-2. **セキュリティ設定ページ（/security-setup）**
-   - Step 1: パスワード設定
-     - 新しいパスワードを入力して「パスワードを設定」ボタンを押す
-     - Cognito の `resetPassword` → `confirmResetPassword` フローで実行
-   - Step 2: パスキー登録（オプション）
-     - 「パスキーを登録」ボタンを押すと WebAuthn 登録フロー開始
-     - Cognito の `associateWebAuthnCredential` でパスキーを登録
-     - 既に登録済みの場合は「パスキーが登録済みです」と表示
-
-3. **ホームページ以降の利用**
-   - 右上のアカウントメニューから「セキュリティ設定」を選択して、パスキー追加登録が可能
-
-4. **パスワード忘却時の復旧**
-   - サインイン画面の「パスワードを忘れた場合」をクリック
-   - メールアドレスを入力して確認コード受取
-   - 新しいパスワードを設定
-
-#### マイグレーション状態管理
-
-**AuthMigrationStatus モデル**
-- 用途: ユーザー単位のマイグレーション状態を追跡する
-- 主な項目
-  - `userId` (string, PK): Cognito `sub` と紐づく内部ユーザーID
-  - `passwordMigratedAt` (timestamp): パスワード設定完了時刻
-  - `passkeyRegisteredAt` (timestamp): パスキー登録完了時刻
-  - `lastPromptedAt` (timestamp): 最後にセキュリティ設定の確認を促した時刻
-- アクセス制御
-  - 本人と管理者のみ読み取り・更新可能
-
-#### フロントエンド実装
-
-**useAuthMigrationStatus フック**
-- マイグレーション状態をフロントエンドで追跡する
-- 主な機能
-  - `userId` 取得後、非同期で `AuthMigrationStatus` レコードを取得
-  - パスワード設定状態（`passwordMigratedAt`）を検出
-  - 重複実行防止
-    - `hasPersistedRecord`: DB に実際にレコードが存在するかを追跡
-    - `resolvedUserId`: 既に状態を確認したユーザーIDを保持
-  - マイグレーション完了状態（`isMigrationStatusResolved`）を提供
-
-**ページガード（HomePage）**
-- ユーザーが初回ログイン時、パスワード未設定の場合は SecuritySetupPage へリダイレクト
-- ガード条件（競合状態を防止）
-  - `userId` が確定 AND `isMigrationStatusResolved` が true AND `isPasswordMigrated` が false
+- 認証必須の画面は管理者向け画面(`/admin/*`)のみとする
+- 公開画面 (`/`, `/events/:eventId`) は未認証で参照可能とする
+- パスワード再設定は Cognito 標準の「パスワードを忘れた場合」導線を利用する
+- セキュリティ設定専用画面 (`/security-setup`) は提供しない
 
 ### ユーザーロール
 
-- ユーザーロールは以下の2種類を用意する
-  - 一般ユーザー
-  - 管理者
+- 利用者ロールは以下の2種類を用意する
+  - 利用者（認証不要）
+  - 管理者（認証必須）
 
 ### 権限設計
 
 ロールごとの操作権限は以下とする。
 
-| 操作 | 一般ユーザー | 管理者 |
+| 操作 | 利用者（認証不要） | 管理者（認証必須） |
 | --- | --- | --- |
+| トップページの参照 | 可 | 可 |
+| イベントページの参照 | 可 | 可 |
 | イベント作成ページへの導線(アカウントメニュー) | 非表示 | 表示 |
-| イベント作成ページの実行 | 不可 | 可 |
+| イベント作成 | 不可 | 可 |
 | イベント状態(open/close)の変更 | 不可 | 可 |
-| イベントページ閲覧 | 可 | 可 |
-| 自分のユーザー情報(ニックネーム/本名)登録・更新 | 可 | 可 |
-| 試合結果の新規登録 | 可 | 可 |
-| 試合結果の編集(自分が登録した結果) | 可 | 可 |
-| 試合結果の編集(他ユーザーが登録した結果) | 不可 | 可 |
+| 利用者一覧の表示 | 不可 | 可 |
+| 利用者の新規作成（本名/ニックネーム設定） | 不可 | 可 |
+| 利用者情報の更新（本名/ニックネーム） | 不可 | 可 |
+| 試合結果の入力 | 不可 | 可 |
+| 試合結果の編集 | 不可 | 可 |
 | 試合結果の削除 | 不可 | 可 |
 | 集計結果の閲覧(イベント/1年/All time) | 可 | 可 |
 
 #### 補足ルール
 
-- 管理者は、全イベント・全試合結果に対して編集権限を持つ
-- 一般ユーザーは、自分が登録した試合結果のみ編集できる
-- 本名は非公開情報として扱い、本人と管理者のみ参照・更新できる
-- 画面上のアカウントメニューには、管理者ログイン時のみ「イベント作成」を表示する
-- イベント作成は独立ページ(`/events/create`)で実行する
+- 管理者は、全イベント・全試合結果・全利用者情報に対して編集権限を持つ
+- 本名は非公開情報として扱い、管理者のみ参照・更新できる
+- 画面上のアカウントメニューには、管理者ログイン時のみ「イベント作成」「利用者管理」を表示する
+- イベント作成は独立ページ(`/admin/events/create`)で実行する
 - テスト用途のイベントは `Event.isTest = true` で管理する
 - `Event.isTest` と `Event.eventDate` は作成後に変更しない運用とする
+- 利用者自身によるサインアップ機能は提供しない
+- 管理者ログインフォームにはサインアップ導線を表示しない
+- 新規利用者は管理者が作成し、Cognito と紐づかない Profile として保持する
+- 既存の Cognito ユーザーと既存データは削除しない
 
 ### API認可ルール
 
-- 認証済みユーザーのみAPIを利用できる
+- 公開参照系APIは未認証利用者も利用できる
 - 管理者ロール判定は Cognito のグループクレーム(`ADMIN`)で行う
 - 認可設計は model-level を基本とする
-  - `Event`: 読み取りは認証済みユーザー、作成・更新・削除は管理者のみ
-  - `PublicProfile`: 作成・読み取りは認証済みユーザー、更新は本人または管理者のみ
-  - `NicknameRegistry`: 作成・読み取り・更新・削除は本人または管理者のみ
-  - `PrivateProfile`: 作成は認証済みユーザー、読み取り・更新は本人または管理者のみ
-  - `MatchResult`: 読み取り・作成は認証済みユーザー、更新は作成者本人または管理者のみ
-  - `FiscalYearLeaderboard`: 読み取りは認証済みユーザー、更新は集計Lambdaまたは管理者のみ
-  - `EventUserContribution`: 作成・読み取り・更新・削除は集計Lambdaまたは管理者のみ
+  - `Event`: 読み取りは未認証/認証済みともに可、作成・更新・削除は管理者のみ
+  - `PublicProfile`: 読み取りは未認証/認証済みともに可、作成・更新・削除は管理者のみ
+  - `NicknameRegistry`: 作成・更新・削除は管理者のみ
+  - `PrivateProfile`: 読み取り・作成・更新・削除は管理者のみ
+  - `MatchResult`: 読み取りは未認証/認証済みともに可、作成・更新・削除は管理者のみ
+  - `FiscalYearLeaderboard`: 読み取りは未認証/認証済みともに可、作成・更新・削除は管理者のみ
+  - `EventUserContribution`: 作成・読み取り・更新・削除は管理者のみ
 - field-level の認可は原則として持たず、モデル単位で操作権限を管理する
-- 一般ユーザーが更新可能なプロフィール項目は、`PublicProfile.nickname` と `PrivateProfile.realName` のみとする
-- `MatchResult` の owner 判定は作成者ではなく `playerUserId`(勝者)を基準とする
-  - 管理者の代理登録であっても、`playerUserId` のユーザーは owner として更新可能
+- 新規作成される利用者 Profile は `identityType = admin_managed` とし、Cognito の `sub` に依存しない `userId` を採用する
+- 既存レコードに `identityType` が存在しない場合は `cognito_user` 相当として扱う
 
-| API操作 | 一般ユーザー | 管理者 | 認可条件 |
+| API操作 | 利用者（認証不要） | 管理者 | 認可条件 |
 | --- | --- | --- | --- |
 | Event作成 | 不可 | 可 | `Event` モデルに対して `group contains ADMIN` |
 | Event更新(任意項目) | 不可 | 可 | `Event` モデルに対して `group contains ADMIN` |
 | Event削除 | 不可 | 可 | `Event` モデルに対して `group contains ADMIN` |
-| Event取得(単体/一覧) | 可 | 可 | `Event` モデルの read を認証済みユーザーに許可 |
-| PublicProfile作成 | 可 | 可 | `PublicProfile` モデルの create を認証済みユーザーに許可。`userId = Cognito sub` |
-| PublicProfile更新(自分) | 可 | 可 | `PublicProfile` モデルに対して owner。更新可能項目は `nickname` のみ |
-| PublicProfile更新(他人) | 不可 | 可 | `PublicProfile` モデルに対して `group contains ADMIN` |
+| Event取得(単体/一覧) | 可 | 可 | `Event` モデルの read を guest + user に許可 |
+| PublicProfile作成 | 不可 | 可 | `PublicProfile` モデルに対して `group contains ADMIN` |
+| PublicProfile更新 | 不可 | 可 | `PublicProfile` モデルに対して `group contains ADMIN` |
 | PublicProfile削除 | 不可 | 可 | `PublicProfile` モデルに対して `group contains ADMIN` |
-| NicknameRegistry作成(自分のニックネーム予約) | 可 | 可 | `NicknameRegistry` モデルに対して owner (`userId = requesterUserId`) |
-| NicknameRegistry取得/更新/削除(自分) | 可 | 可 | `NicknameRegistry` モデルに対して owner (`userId = requesterUserId`) |
-| NicknameRegistry取得/更新/削除(他人) | 不可 | 可 | `NicknameRegistry` モデルに対して `group contains ADMIN` |
-| PrivateProfile作成 | 可 | 可 | `PrivateProfile` モデルの create を認証済みユーザーに許可。`userId = Cognito sub` |
-| PrivateProfile取得(自分) | 可 | 可 | `PrivateProfile` モデルに対して owner read |
-| PrivateProfile取得(他人) | 不可 | 可 | `PrivateProfile` モデルに対して `group contains ADMIN` |
-| PrivateProfile更新(自分) | 可 | 可 | `PrivateProfile` モデルに対して owner。更新可能項目は `realName` のみ |
-| PrivateProfile更新(他人) | 不可 | 可 | `PrivateProfile` モデルに対して `group contains ADMIN` |
-| PrivateProfile削除 | 不可 | 可 | `PrivateProfile` モデルに対して `group contains ADMIN` |
-| MatchResult作成 | 可 | 可 | `MatchResult` モデルの create を認証済みユーザーに許可。一般ユーザーは `playerUserId = requesterUserId`、管理者は `playerUserId` / `loserUserId` / `matchTime` を指定して代理登録可 |
-| MatchResult更新(自分が作成) | 可 | 可 | `MatchResult` モデルに対して owner (`playerUserId = requesterUserId`) |
-| MatchResult更新(他人が作成) | 不可 | 可 | `MatchResult` モデルに対して `group contains ADMIN` |
-| MatchResult削除 | 不可 | 可 | `MatchResult` モデルに対して `group contains ADMIN` |
-| 集計取得(イベント/1年/All time) | 可 | 可 | 集計対象モデル (`Event`, `PublicProfile`, `MatchResult`) の read を認証済みユーザーに許可 |
+| NicknameRegistry作成/更新/削除 | 不可 | 可 | `NicknameRegistry` モデルに対して `group contains ADMIN` |
+| PrivateProfile作成/取得/更新/削除 | 不可 | 可 | `PrivateProfile` モデルに対して `group contains ADMIN` |
+| MatchResult作成/更新/削除 | 不可 | 可 | `MatchResult` モデルに対して `group contains ADMIN` |
+| MatchResult取得(単体/一覧) | 可 | 可 | `MatchResult` モデルの read を guest + user に許可 |
+| 集計取得(イベント/1年/All time) | 可 | 可 | 集計対象モデル (`Event`, `PublicProfile`, `MatchResult`) の read を guest + user に許可 |
 
 ### 機能要件
 
@@ -165,7 +96,7 @@ Email OTP のみの認証方式から、Password + Passkey を主とする認証
 - 新しいイベントを作成できる
   - 管理者だけがイベントを作成できる
   - アカウントアイコンのメニューに、管理者ログイン時のみ「イベント作成」を表示する
-  - 「イベント作成」は独立ページ(`/events/create`)に遷移して実行する
+  - 「イベント作成」は独立ページ(`/admin/events/create`)に遷移して実行する
   - イベントは状態(`status`)を持つ
     - `open`: 一覧表示され、試合結果の新規登録が可能
     - `close`: 一覧表示される。一般ユーザーの新規登録は不可、管理者は新規登録可能
@@ -199,56 +130,9 @@ Email OTP のみの認証方式から、Password + Passkey を主とする認証
   - ニックネーム: 対戦相手に表示される名前
   - 本名: 管理用の非公開情報
 - イベントページにアクセスしたとき、ユーザーは以下のいずれかの操作を行う
-  - ログイン済みの場合は、既存のユーザーを選択するステップを省略して結果の登録画面に遷移する
-  - 未ログインの場合は、ログイン / 新規登録 を選択する
-    - ログイン を選択した場合は、ログイン完了後に結果の登録画面に遷移する
-    - 新規登録 を選択した場合は、新しいユーザーを登録し、登録完了後に結果の登録画面に遷移する
-
-#### セキュリティ設定（SecuritySetupPage）
-
-- 用途: Email OTP で登録済みのユーザーが、パスワードとパスキーを設定する
-- アクセス条件
-  - ホームページでリダイレクト: パスワード未設定ユーザーが初回ログイン時に強制遷移
-  - メニュー経由: 右上のアカウントメニューから「セキュリティ設定」を選択してアクセス（パスキー追加登録用）
-- 画面構成
-
-##### Step 1: パスワード設定
-
-- 表示条件: `passwordMigratedAt` が null の場合、常に表示
-- 入力項目
-  - 新しいパスワード (required)
-    - パスワード強度要件: 最小8文字、大文字・小文字・数字を必須（特殊文字は不要）
-  - パスワード確認 (required)
-    - 2つのパスワード入力欄が一致することを検証する
-- 操作
-  - 「パスワードを設定」ボタンをクリック
-    - Cognito の `resetPassword` API を呼び出し、一時パスワードをクリア
-    - `confirmResetPassword` API でユーザー設定のパスワードを確定
-    - `AuthMigrationStatus.passwordMigratedAt` を現在時刻で更新
-    - 成功時は Step 2 を表示
-- エラーハンドリング
-  - パスワード不一致: クライアント側で検証エラーを表示
-  - パスワード強度不足: Cognito エラーメッセージを表示
-
-##### Step 2: パスキー登録（オプション）
-
-- 表示条件
-  - Step 1 のパスワード設定が完了（`passwordMigratedAt` が設定）した場合、表示
-  - `passkeyRegisteredAt` が null の場合、「パスキーを登録」ボタンを表示
-  - `passkeyRegisteredAt` が設定済みの場合、「パスキーが登録済みです」と表示（ボタンなし）
-- 操作
-  - 「パスキーを登録」ボタンをクリック
-    - Cognito の `associateWebAuthnCredential` API を呼び出し、WebAuthn 登録フロー開始
-    - ユーザーは利用デバイス（指紋認証、顔認証、セキュリティキーなど）を選択
-    - 登録完了後、`AuthMigrationStatus.passkeyRegisteredAt` を現在時刻で更新
-    - 成功メッセージを表示
-- エラーハンドリング
-  - WebAuthn 非対応環境: エラーメッセージを表示し、パスキー登録をスキップ可能
-  - ユーザーがキャンセル: メッセージを表示し、後で登録可能（ホームページのメニューから再度アクセス可能）
-
-- アカウントメニューとの連携
-  - セキュリティ設定ページ内のメニュー（右上のアカウントメニュー）には「セキュリティ設定」リンクを表示
-  - これにより、パスキー追加登録画面への遷移が可能
+  - 未ログイン利用者は、トップページとイベントページを参照できる
+  - 管理者のみログインし、管理操作（イベント作成・利用者管理・試合結果の入力/編集/削除）を行う
+  - 新規利用者の登録は、管理者が管理画面から実施する
 
 #### 試合結果
 
@@ -400,8 +284,10 @@ Email OTP のみの認証方式から、Password + Passkey を主とする認証
 
 - 用途: 公開プロフィール情報を管理する
 - 主な項目
-  - `userId` (string, PK): Cognito `sub` と紐づく内部ユーザーID
+  - `userId` (string, PK): 内部ユーザーID（既存ユーザーでは Cognito `sub`、管理者作成ユーザーでは独自ID）
   - `nickname` (string, required): 公開名
+  - `identityType` (enum, optional): `cognito_user` / `admin_managed`
+  - `createdBy` (string, optional): 管理者作成時の作成者ユーザーID
 
 #### NicknameRegistry
 
@@ -414,24 +300,16 @@ Email OTP のみの認証方式から、Password + Passkey を主とする認証
 
 - 用途: 非公開プロフィール情報を管理する
 - 主な項目
-  - `userId` (string, PK): Cognito `sub` と紐づく内部ユーザーID
+  - `userId` (string, PK): 内部ユーザーID（既存ユーザーでは Cognito `sub`、管理者作成ユーザーでは独自ID）
   - `realName` (string, required): 非公開情報(本人・管理者のみ参照可)
+  - `identityType` (enum, optional): `cognito_user` / `admin_managed`
+  - `createdBy` (string, optional): 管理者作成時の作成者ユーザーID
 
-#### AuthMigrationStatus
+#### AuthMigrationStatus (Legacy)
 
-- 用途: ユーザーの認証マイグレーション状態を追跡する
-- 主な項目
-  - `userId` (string, PK): Cognito `sub` と紐づく内部ユーザーID
-  - `passwordMigratedAt` (timestamp, optional): パスワード設定完了時刻(ISO 8601形式)
-  - `passkeyRegisteredAt` (timestamp, optional): パスキー登録完了時刻(ISO 8601形式)
-  - `lastPromptedAt` (timestamp, optional): 最後にセキュリティ設定確認を促した時刻
-- アクセス制御
-  - 読み取り: 本人と管理者のみ
-  - 作成・更新: 本人と管理者のみ
-- 用途詳細
-  - `passwordMigratedAt` が `null` の場合は、ユーザーはセキュリティ設定ページへリダイレクトされる
-  - `passwordMigratedAt` が設定されている場合、ユーザーはホームページなど通常ページへアクセス可能
-  - `passkeyRegisteredAt` が `null` の場合、セキュリティ設定ページでパスキー登録が提案される
+- 用途: 過去の認証移行対応で利用していた履歴データを保持する
+- 現在の運用ではアプリ機能から直接参照しない
+- 既存データ保全のため、モデル定義とデータは削除しない
 
 #### MatchResult
 
@@ -498,6 +376,43 @@ Email OTP のみの認証方式から、Password + Passkey を主とする認証
   - 年度MV更新、監査、バックフィル用途で利用
   - イベントページ表示の一次データソースには使用しない
 
+### 実装計画(Phase 3-8 更新)
+
+1. 公開画面と管理画面のルーティングを分離する
+  - 公開: `/`, `/events/:eventId`
+  - 管理: `/admin/*`（Authenticator 配下）
+2. 管理者ログインフォームからサインアップ導線を除去する
+  - `Authenticator` で `hideSignUp` を有効化する
+3. SecuritySetup 機能を廃止する
+  - `/security-setup` ルートを削除する
+  - SecuritySetup 画面・関連フック・関連メニュー導線を削除する
+4. 既存データ保全を継続する
+  - `AuthMigrationStatus` は Legacy データとして保持し、アプリ本体からは参照しない
+5. 管理画面のロールガードを追加する
+  - `/admin/*` は `ADMIN` グループユーザーのみアクセス可能とする
+  - 非管理者ログイン時は公開トップへリダイレクトする
+6. 利用者管理機能を管理画面に追加する
+  - `/admin/users` に利用者管理ページを追加する
+  - 管理者が `PublicProfile` / `PrivateProfile` を新規作成・更新できるようにする
+  - ニックネーム重複防止は `NicknameRegistry` で担保する
+7. 仕様と実装の整合を最終化する
+  - SecuritySetup 廃止後の認証運用方針に統一する
+  - `AuthMigrationStatus` は Legacy 保持のみでアプリ本体から参照しない方針を固定する
+  - `PublicProfile` / `PrivateProfile` の `identityType` / `createdBy` を仕様へ反映する
+8. 回帰テスト基盤を追加する
+  - `vitest` + Testing Library を導入する
+  - 管理ルートガード（`/admin/*`）の挙動をテストする
+  - 公開ページのルーティング（`/`, `/events/:eventId`）をテストする
+  - 利用者管理ページの作成/編集フローをテストする
+9. リリース前確認を自動化する
+  - `check:release` で lint/test/build/preflight を一括実行する
+  - `phase8:preflight` で認可設定とルーティング方針の機械検証を行う
+  - preflight で以下を検証する
+    - `AWS_IAM` の有効化と public read ルール
+    - `PublicProfile` / `PrivateProfile` の `identityType` / `createdBy`
+    - `/admin/*` ルーティングと `security-setup` 非採用方針
+    - `AuthMigrationStatus (Legacy)` の仕様保持
+
 #### クエリ経路(イベントページ)
 
 1. ページ初期表示
@@ -522,11 +437,13 @@ Email OTP のみの認証方式から、Password + Passkey を主とする認証
 
 ### 画面ルーティング
 
-- `/` : ホーム
-- `/profile` : プロフィール編集
-- `/security-setup` : セキュリティ設定（パスワード＋パスキー登録ページ）
-- `/events/create` : イベント作成(管理者向け)
-- `/events/:eventId` : イベント詳細(試合結果登録・イベント内ランキング)
+- `/` : 公開トップ
+- `/events/:eventId` : 公開イベント詳細(ランキング・試合結果閲覧)
+- `/admin` : 管理者ホーム
+- `/admin/users` : 利用者管理(管理者向け)
+- `/admin/profile` : プロフィール編集
+- `/admin/events/create` : イベント作成(管理者向け)
+- `/admin/events/:eventId` : 管理者イベント詳細(試合結果入力・編集・削除)
 
 ## 実装
 

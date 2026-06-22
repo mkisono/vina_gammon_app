@@ -1,11 +1,13 @@
 import { Authenticator, useAuthenticator, View, Button } from "@aws-amplify/ui-react";
 import type { AuthUser } from "aws-amplify/auth";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { PublicHomePage } from "./pages/PublicHomePage";
+import { PublicEventPage } from "./pages/PublicEventPage";
 import { HomePage } from "./pages/HomePage";
 import { EventPage } from "./pages/EventPage";
-import { ProfilePage } from "./pages/ProfilePage";
 import { EventCreatePage } from "./pages/EventCreatePage";
-import { SecuritySetupPage } from "./pages/SecuritySetupPage.tsx";
+import { AdminUsersPage } from "./pages/AdminUsersPage";
+import { useAuthUser } from "./hooks";
 
 type AuthenticatedContentProps = {
   signOut?: () => void;
@@ -23,22 +25,29 @@ function SignInFooter() {
   );
 }
 
-function AuthenticatedContent({ signOut, user }: AuthenticatedContentProps) {
+function AuthenticatedAdminContent({ signOut, user }: AuthenticatedContentProps) {
+  const { isAdmin, isLoadingAuthUser } = useAuthUser();
+
+  if (isLoadingAuthUser) {
+    return null;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage signOut={signOut} user={user} />} />
-        <Route path="/security-setup" element={<SecuritySetupPage signOut={signOut} user={user} />} />
-        <Route path="/profile" element={<ProfilePage signOut={signOut} user={user} />} />
-        <Route path="/events/create" element={<EventCreatePage signOut={signOut} user={user} />} />
-        <Route path="/events/:eventId" element={<EventPage signOut={signOut} user={user} />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      <Route path="/" element={<HomePage signOut={signOut} user={user} />} />
+      <Route path="/users" element={<AdminUsersPage signOut={signOut} user={user} />} />
+      <Route path="/events/create" element={<EventCreatePage signOut={signOut} user={user} />} />
+      <Route path="/events/:eventId" element={<EventPage signOut={signOut} user={user} />} />
+      <Route path="*" element={<Navigate to="/admin" replace />} />
+    </Routes>
   );
 }
 
-function App() {
+function AdminApp() {
   const authComponents = {
     SignIn: {
       Footer() {
@@ -50,14 +59,29 @@ function App() {
   return (
     <Authenticator
       components={authComponents}
+      hideSignUp
+      initialState="signIn"
       loginMechanisms={["email"]}
       passwordless={{
         preferredAuthMethod: "PASSWORD",
         hiddenAuthMethods: ["SMS_OTP"],
       }}
     >
-      {({ signOut, user }) => <AuthenticatedContent signOut={signOut} user={user} />}
+      {({ signOut, user }) => <AuthenticatedAdminContent signOut={signOut} user={user} />}
     </Authenticator>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<PublicHomePage />} />
+        <Route path="/events/:eventId" element={<PublicEventPage />} />
+        <Route path="/admin/*" element={<AdminApp />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

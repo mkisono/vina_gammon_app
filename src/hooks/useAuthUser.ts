@@ -4,10 +4,12 @@ import { getStringArrayClaim } from "./authClaims";
 
 type UseAuthUserReturn = {
   isAdmin: boolean;
+  isLoadingAuthUser: boolean;
 };
 
 export function useAuthUser(): UseAuthUserReturn {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoadingAuthUser, setIsLoadingAuthUser] = useState(true);
 
   useEffect(() => {
     const loadRole = async () => {
@@ -23,11 +25,13 @@ export function useAuthUser(): UseAuthUserReturn {
         setIsAdmin(admin);
       } catch {
         setIsAdmin(false);
+      } finally {
+        setIsLoadingAuthUser(false);
       }
     };
 
     loadRole();
   }, []);
 
-  return { isAdmin };
+  return { isAdmin, isLoadingAuthUser };
 }

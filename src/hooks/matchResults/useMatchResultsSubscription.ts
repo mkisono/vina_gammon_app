@@ -12,6 +12,11 @@ type UseMatchResultsSubscriptionReturn = {
   results: Array<MatchResult>;
 };
 
+type UseMatchResultsSubscriptionOptions = {
+  enabled?: boolean;
+  realTime?: boolean;
+};
+
 type PendingMatchResultChange =
   | { type: "upsert"; item: MatchResult }
   | { type: "delete"; resultId: string };
@@ -72,8 +77,10 @@ const mergeInitialResults = (
 
 export function useMatchResultsSubscription(
   currentEventId: string,
-  enabled = true
+  options: boolean | UseMatchResultsSubscriptionOptions = true
 ): UseMatchResultsSubscriptionReturn {
+  const enabled = typeof options === "boolean" ? options : options.enabled ?? true;
+  const realTime = typeof options === "boolean" ? options : options.realTime ?? true;
   const [results, setResults] = useState<Array<MatchResult>>([]);
   const [restartCount, setRestartCount] = useState(0);
 
@@ -93,6 +100,40 @@ export function useMatchResultsSubscription(
     if (!enabled || !currentEventId) {
       setResults([]);
       return;
+    }
+
+    if (!realTime) {
+      let cancelled = false;
+      const fetchInitial = async () => {
+        try {
+          let nextToken: string | null | undefined = undefined;
+          const all: MatchResult[] = [];
+          do {
+            const response: MatchResultsByEventResponse = await client.models.MatchResult.listMatchResultsByEvent(
+              { eventId: currentEventId },
+              {
+                sortDirection: "ASC",
+                nextToken,
+                limit: 1000,
+                authMode: "iam",
+              }
+            );
+            all.push(...(response.data ?? []));
+            nextToken = response.nextToken;
+          } while (nextToken);
+
+          if (!cancelled) {
+            setResults(sortMatchResults(all));
+          }
+        } catch (error) {
+          console.error("Failed to fetch initial match results.", error);
+        }
+      };
+
+      void fetchInitial();
+      return () => {
+        cancelled = true;
+      };
     }
 
     let cancelled = false;
@@ -173,7 +214,7 @@ export function useMatchResultsSubscription(
       onUpdateSub.unsubscribe();
       onDeleteSub.unsubscribe();
     };
-  }, [enabled, currentEventId, restartCount]);
+  }, [enabled, currentEventId, restartCount, realTime]);
 
   return { results };
 }

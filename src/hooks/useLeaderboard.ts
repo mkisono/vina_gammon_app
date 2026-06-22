@@ -6,6 +6,7 @@ import {
   type LeaderboardRow,
   type LeaderboardScope,
 } from "../lib/leaderboard";
+import { fetchAllPages } from "./fetchAllPages";
 
 const client = generateClient<Schema>();
 
@@ -17,6 +18,7 @@ type UseLeaderboardParams = {
   fiscalYearStartYear?: number;
   eventIsTestById?: Map<string, boolean>;
   enabled?: boolean;
+  realTime?: boolean;
 };
 
 type UseLeaderboardReturn = {
@@ -52,6 +54,7 @@ export function useLeaderboard({
   fiscalYearStartYear,
   eventIsTestById: externalEventIsTestById,
   enabled = true,
+  realTime = true,
 }: UseLeaderboardParams): UseLeaderboardReturn {
   const isFiscalYear = scope === "FISCAL_YEAR";
 
@@ -78,6 +81,35 @@ export function useLeaderboard({
   useEffect(() => {
     if (!enabled || !isFiscalYear || fiscalYearStartYear === undefined) return;
 
+    if (!realTime) {
+      let cancelled = false;
+      const fetchFiscalYearRows = async () => {
+        try {
+          const [mvItems, profileItems] = await Promise.all([
+            fetchAllPages((nextToken) =>
+              client.models.FiscalYearLeaderboard.list({
+                filter: { fiscalYear: { eq: fiscalYearStartYear } },
+                authMode: "iam",
+                nextToken,
+              })
+            ),
+            fetchAllPages((nextToken) => client.models.PublicProfile.list({ authMode: "iam", nextToken })),
+          ]);
+          if (!cancelled) {
+            setMvItems(mvItems);
+            setProfiles(profileItems);
+          }
+        } catch (error) {
+          console.error("Failed to fetch fiscal year leaderboard.", error);
+        }
+      };
+
+      void fetchFiscalYearRows();
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const mvSub = client.models.FiscalYearLeaderboard.observeQuery({
       filter: { fiscalYear: { eq: fiscalYearStartYear } },
     }).subscribe({
@@ -92,12 +124,45 @@ export function useLeaderboard({
       mvSub.unsubscribe();
       profileSub.unsubscribe();
     };
-  }, [enabled, isFiscalYear, fiscalYearStartYear]);
+  }, [enabled, isFiscalYear, fiscalYearStartYear, realTime]);
 
   // EVENT / ALL_TIME: MatchResult を購読
   useEffect(() => {
     if (!enabled || isFiscalYear) return;
     if (resultFilter === null) return;
+
+    if (!realTime) {
+      let cancelled = false;
+      const fetchResults = async () => {
+        try {
+          const [resultItems, profileItems, eventItems] = await Promise.all([
+            fetchAllPages((nextToken) =>
+              resultFilter
+                ? client.models.MatchResult.list({ filter: resultFilter, authMode: "iam", nextToken })
+                : client.models.MatchResult.list({ authMode: "iam", nextToken })
+            ),
+            fetchAllPages((nextToken) => client.models.PublicProfile.list({ authMode: "iam", nextToken })),
+            externalEventIsTestById
+              ? Promise.resolve([] as Array<Schema["Event"]["type"]>)
+              : fetchAllPages((nextToken) => client.models.Event.list({ authMode: "iam", nextToken })),
+          ]);
+          if (!cancelled) {
+            setResults(resultItems);
+            setProfiles(profileItems);
+            if (!externalEventIsTestById) {
+              setEvents(eventItems);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch leaderboard data.", error);
+        }
+      };
+
+      void fetchResults();
+      return () => {
+        cancelled = true;
+      };
+    }
 
     const resultSub = client.models.MatchResult.observeQuery(
       resultFilter ? { filter: resultFilter } : undefined
@@ -118,7 +183,7 @@ export function useLeaderboard({
       profileSub.unsubscribe();
       eventSub?.unsubscribe();
     };
-  }, [enabled, isFiscalYear, resultFilter, externalEventIsTestById]);
+  }, [enabled, isFiscalYear, resultFilter, externalEventIsTestById, realTime]);
 
   const internalEventIsTestById = useMemo(() => {
     const map = new Map<string, boolean>();

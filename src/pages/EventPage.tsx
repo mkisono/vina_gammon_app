@@ -14,6 +14,7 @@ type EventPageProps = {
 };
 
 export function EventPage({ signOut }: EventPageProps) {
+  const adminBasePath = "/admin";
   const navigate = useNavigate();
   const { isAdmin } = useAuthUser();
   const { eventId: encodedEventId } = useParams<{ eventId: string }>();
@@ -115,7 +116,7 @@ export function EventPage({ signOut }: EventPageProps) {
   }, [profiles]);
 
   const handleGoToHome = () => {
-    navigate("/");
+    navigate(adminBasePath);
   };
 
   const matchResultEventContext = {
@@ -154,9 +155,8 @@ export function EventPage({ signOut }: EventPageProps) {
       <AppHeader
         isAdmin={isAdmin}
         onGoHome={handleGoToHome}
-        onGoEventCreate={() => navigate("/events/create")}
-        onGoProfile={() => navigate("/profile")}
-        onGoSecuritySetup={() => navigate("/security-setup")}
+        onGoEventCreate={() => navigate(`${adminBasePath}/events/create`)}
+        onGoUserManagement={() => navigate(`${adminBasePath}/users`)}
         onSignOut={signOut}
       />
 

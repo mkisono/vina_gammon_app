@@ -4,18 +4,16 @@ import { useEffect, useRef, useState } from "react";
 type AppHeaderProps = {
   isAdmin?: boolean;
   onGoHome: () => void;
-  onGoProfile: () => void;
   onGoEventCreate?: () => void;
-  onGoSecuritySetup?: () => void;
+  onGoUserManagement?: () => void;
   onSignOut?: () => void;
 };
 
 export function AppHeader({
   isAdmin = false,
   onGoHome,
-  onGoProfile,
   onGoEventCreate,
-  onGoSecuritySetup,
+  onGoUserManagement,
   onSignOut,
 }: AppHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -42,11 +40,6 @@ export function AppHeader({
     };
   }, []);
 
-  const handleGoProfile = () => {
-    setIsMenuOpen(false);
-    onGoProfile();
-  };
-
   const handleSignOut = () => {
     setIsMenuOpen(false);
     onSignOut?.();
@@ -57,9 +50,9 @@ export function AppHeader({
     onGoEventCreate?.();
   };
 
-  const handleGoSecuritySetup = () => {
+  const handleGoUserManagement = () => {
     setIsMenuOpen(false);
-    onGoSecuritySetup?.();
+    onGoUserManagement?.();
   };
 
   return (
@@ -107,12 +100,9 @@ export function AppHeader({
                 イベント作成
               </button>
             )}
-            <button type="button" className="appbar-menu-item" onClick={handleGoProfile}>
-              プロフィール編集
-            </button>
-            {onGoSecuritySetup && (
-              <button type="button" className="appbar-menu-item" onClick={handleGoSecuritySetup}>
-                セキュリティ設定
+            {isAdmin && onGoUserManagement && (
+              <button type="button" className="appbar-menu-item" onClick={handleGoUserManagement}>
+                利用者管理
               </button>
             )}
             <button type="button" className="appbar-menu-item" onClick={handleSignOut}>

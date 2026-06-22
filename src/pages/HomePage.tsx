@@ -1,16 +1,13 @@
 import { View } from "@aws-amplify/ui-react";
 import type { AuthUser } from "aws-amplify/auth";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 import { AppHeader } from "../components/layout/AppHeader";
 import { EventListSection } from "../components/events/EventListSection";
 import { LeaderboardSection } from "../components/results/LeaderboardSection";
 import { getFiscalYearStartYear } from "../lib/leaderboard";
 import {
   useAuthUser,
-  useAuthMigrationStatus,
   useCurrentUser,
-  useProfile,
   useEvents,
   useLeaderboard,
 } from "../hooks";
@@ -21,20 +18,12 @@ type HomePageProps = {
 };
 
 export function HomePage({ signOut }: HomePageProps) {
+  const adminBasePath = "/admin";
   const fiscalYearStartYear = getFiscalYearStartYear();
   const navigate = useNavigate();
   const { isAdmin } = useAuthUser();
   const { userId, isLoading } = useCurrentUser();
   const isDataReady = !isLoading && Boolean(userId);
-  const {
-    isPasswordMigrated,
-    isLoadingMigrationStatus,
-    isMigrationStatusResolved,
-  } = useAuthMigrationStatus(userId);
-  const {
-    hasProfile,
-    isLoadingProfile,
-  } = useProfile(userId);
   const {
     events,
     sortedEvents,
@@ -49,41 +38,8 @@ export function HomePage({ signOut }: HomePageProps) {
     enabled: isDataReady,
   });
 
-  const profileRequired = !hasProfile;
-  const canDecideProfile = !isLoading && !isLoadingProfile;
-  const canDecideSecurity = !isLoading && !isLoadingMigrationStatus && isMigrationStatusResolved;
-
-  useEffect(() => {
-    if (!canDecideSecurity || isPasswordMigrated) {
-      return;
-    }
-    navigate("/security-setup", { replace: true });
-  }, [canDecideSecurity, isPasswordMigrated, navigate]);
-
-  // 初回マウント時のみ、プロファイル初期設定が必須の場合プロファイルページへリダイレクト
-  useEffect(() => {
-    if (!canDecideSecurity || !isPasswordMigrated || !canDecideProfile || !profileRequired) {
-      return;
-    }
-    navigate("/profile", { replace: true });
-  }, [canDecideSecurity, isPasswordMigrated, canDecideProfile, profileRequired, navigate]);
-
-  // 読み込み完了前は判定を保留する。
-  if (!canDecideSecurity || !canDecideProfile) {
-    return null;
-  }
-
-  if (!isPasswordMigrated) {
-    return null;
-  }
-
-  // プロファイル未完了時はコンポーネントを表示しない（リダイレクト処理中）
-  if (profileRequired) {
-    return null;
-  }
-
   const handleOpenEventPage = (eventId: string) => {
-    navigate(`/events/${encodeURIComponent(eventId)}`);
+    navigate(`${adminBasePath}/events/${encodeURIComponent(eventId)}`);
   };
 
   const displayedEvents = isAdmin
@@ -94,10 +50,9 @@ export function HomePage({ signOut }: HomePageProps) {
     <View padding="2rem">
       <AppHeader
         isAdmin={isAdmin}
-        onGoHome={() => navigate("/")}
-        onGoEventCreate={() => navigate("/events/create")}
-        onGoProfile={() => navigate("/profile")}
-        onGoSecuritySetup={() => navigate("/security-setup")}
+        onGoHome={() => navigate(adminBasePath)}
+        onGoEventCreate={() => navigate(`${adminBasePath}/events/create`)}
+        onGoUserManagement={() => navigate(`${adminBasePath}/users`)}
         onSignOut={signOut}
       />
 
