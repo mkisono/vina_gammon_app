@@ -3,7 +3,7 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 /**
  * Graphics Schema based on SPEC.md data models
  * Models: Event, PublicProfile, PrivateProfile, MatchResult
- * Authorization: Cognito groups (ADMIN) + owner rules
+ * Authorization: guest/public read + ADMIN write controls
  */
 const schema = a.schema({
   Event: a
@@ -16,6 +16,7 @@ const schema = a.schema({
     })
     .identifier(["eventId"])
     .authorization((allow) => [
+      allow.guest().to(["read"]),
       allow.authenticated().to(["read"]),
       allow.group("ADMIN").to(["create", "update", "delete"]),
     ]),
@@ -24,12 +25,14 @@ const schema = a.schema({
     .model({
       userId: a.id().required(),
       nickname: a.string().required(),
+      identityType: a.enum(["cognito_user", "admin_managed"]),
+      createdBy: a.id(),
     })
     .identifier(["userId"])
     .authorization((allow) => [
-      allow.authenticated().to(["create", "read"]),
-      allow.ownerDefinedIn("userId").to(["update"]),
-      allow.group("ADMIN").to(["read", "update", "delete"]),
+      allow.guest().to(["read"]),
+      allow.authenticated().to(["read"]),
+      allow.group("ADMIN").to(["create", "read", "update", "delete"]),
     ]),
 
   NicknameRegistry: a
@@ -39,20 +42,19 @@ const schema = a.schema({
     })
     .identifier(["nicknameKey"])
     .authorization((allow) => [
-      allow.ownerDefinedIn("userId").to(["create", "read", "update", "delete"]),
-      allow.group("ADMIN").to(["read", "update", "delete"]),
+      allow.group("ADMIN").to(["create", "read", "update", "delete"]),
     ]),
 
   PrivateProfile: a
     .model({
       userId: a.id().required(),
       realName: a.string().required(),
+      identityType: a.enum(["cognito_user", "admin_managed"]),
+      createdBy: a.id(),
     })
     .identifier(["userId"])
     .authorization((allow) => [
-      allow.authenticated().to(["create"]),
-      allow.ownerDefinedIn("userId").to(["read", "update"]),
-      allow.group("ADMIN").to(["read", "update", "delete"]),
+      allow.group("ADMIN").to(["create", "read", "update", "delete"]),
     ]),
 
   AuthMigrationStatus: a
@@ -86,9 +88,9 @@ const schema = a.schema({
         .queryField("listMatchResultsByEvent"),
     ])
     .authorization((allow) => [
-      allow.authenticated().to(["read", "create"]),
-      allow.ownerDefinedIn("playerUserId").to(["update"]),
-      allow.group("ADMIN").to(["update", "delete"]),
+      allow.guest().to(["read"]),
+      allow.authenticated().to(["read"]),
+      allow.group("ADMIN").to(["create", "update", "delete"]),
     ]),
 
   FiscalYearLeaderboard: a
@@ -102,6 +104,7 @@ const schema = a.schema({
     })
     .identifier(["fiscalYear", "userId"])
     .authorization((allow) => [
+      allow.guest().to(["read"]),
       allow.authenticated().to(["read"]),
       allow.group("ADMIN").to(["create", "update", "delete"]),
     ]),
