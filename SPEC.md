@@ -49,7 +49,7 @@
 
 - 管理者は、全イベント・全試合結果・全利用者情報に対して編集権限を持つ
 - 本名は非公開情報として扱い、管理者のみ参照・更新できる
-- 画面上のアカウントメニューには、管理者ログイン時のみ「イベント作成」を表示する
+- 画面上のアカウントメニューには、管理者ログイン時のみ「イベント作成」「利用者管理」を表示する
 - イベント作成は独立ページ(`/admin/events/create`)で実行する
 - テスト用途のイベントは `Event.isTest = true` で管理する
 - `Event.isTest` と `Event.eventDate` は作成後に変更しない運用とする
@@ -68,8 +68,8 @@
   - `NicknameRegistry`: 作成・更新・削除は管理者のみ
   - `PrivateProfile`: 読み取り・作成・更新・削除は管理者のみ
   - `MatchResult`: 読み取りは未認証/認証済みともに可、作成・更新・削除は管理者のみ
-  - `FiscalYearLeaderboard`: 読み取りは未認証/認証済みともに可、更新は集計Lambdaまたは管理者のみ
-  - `EventUserContribution`: 作成・読み取り・更新・削除は集計Lambdaまたは管理者のみ
+  - `FiscalYearLeaderboard`: 読み取りは未認証/認証済みともに可、作成・更新・削除は管理者のみ
+  - `EventUserContribution`: 作成・読み取り・更新・削除は管理者のみ
 - field-level の認可は原則として持たず、モデル単位で操作権限を管理する
 - 新規作成される利用者 Profile は `identityType = admin_managed` とし、Cognito の `sub` に依存しない `userId` を採用する
 - 既存レコードに `identityType` が存在しない場合は `cognito_user` 相当として扱う
@@ -284,8 +284,10 @@
 
 - 用途: 公開プロフィール情報を管理する
 - 主な項目
-  - `userId` (string, PK): Cognito `sub` と紐づく内部ユーザーID
+  - `userId` (string, PK): 内部ユーザーID（既存ユーザーでは Cognito `sub`、管理者作成ユーザーでは独自ID）
   - `nickname` (string, required): 公開名
+  - `identityType` (enum, optional): `cognito_user` / `admin_managed`
+  - `createdBy` (string, optional): 管理者作成時の作成者ユーザーID
 
 #### NicknameRegistry
 
@@ -298,8 +300,10 @@
 
 - 用途: 非公開プロフィール情報を管理する
 - 主な項目
-  - `userId` (string, PK): Cognito `sub` と紐づく内部ユーザーID
+  - `userId` (string, PK): 内部ユーザーID（既存ユーザーでは Cognito `sub`、管理者作成ユーザーでは独自ID）
   - `realName` (string, required): 非公開情報(本人・管理者のみ参照可)
+  - `identityType` (enum, optional): `cognito_user` / `admin_managed`
+  - `createdBy` (string, optional): 管理者作成時の作成者ユーザーID
 
 #### AuthMigrationStatus (Legacy)
 
@@ -372,7 +376,7 @@
   - 年度MV更新、監査、バックフィル用途で利用
   - イベントページ表示の一次データソースには使用しない
 
-### 実装計画(Phase 3-4 更新)
+### 実装計画(Phase 3-8 更新)
 
 1. 公開画面と管理画面のルーティングを分離する
   - 公開: `/`, `/events/:eventId`
@@ -391,6 +395,23 @@
   - `/admin/users` に利用者管理ページを追加する
   - 管理者が `PublicProfile` / `PrivateProfile` を新規作成・更新できるようにする
   - ニックネーム重複防止は `NicknameRegistry` で担保する
+7. 仕様と実装の整合を最終化する
+  - SecuritySetup 廃止後の認証運用方針に統一する
+  - `AuthMigrationStatus` は Legacy 保持のみでアプリ本体から参照しない方針を固定する
+  - `PublicProfile` / `PrivateProfile` の `identityType` / `createdBy` を仕様へ反映する
+8. 回帰テスト基盤を追加する
+  - `vitest` + Testing Library を導入する
+  - 管理ルートガード（`/admin/*`）の挙動をテストする
+  - 公開ページのルーティング（`/`, `/events/:eventId`）をテストする
+  - 利用者管理ページの作成/編集フローをテストする
+9. リリース前確認を自動化する
+  - `check:release` で lint/test/build/preflight を一括実行する
+  - `phase8:preflight` で認可設定とルーティング方針の機械検証を行う
+  - preflight で以下を検証する
+    - `AWS_IAM` の有効化と public read ルール
+    - `PublicProfile` / `PrivateProfile` の `identityType` / `createdBy`
+    - `/admin/*` ルーティングと `security-setup` 非採用方針
+    - `AuthMigrationStatus (Legacy)` の仕様保持
 
 #### クエリ経路(イベントページ)
 
