@@ -5,7 +5,6 @@ import { PublicHomePage } from "./pages/PublicHomePage";
 import { PublicEventPage } from "./pages/PublicEventPage";
 import { HomePage } from "./pages/HomePage";
 import { EventPage } from "./pages/EventPage";
-import { ProfilePage } from "./pages/ProfilePage";
 import { EventCreatePage } from "./pages/EventCreatePage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { useAuthUser } from "./hooks";
@@ -41,7 +40,6 @@ function AuthenticatedAdminContent({ signOut, user }: AuthenticatedContentProps)
     <Routes>
       <Route path="/" element={<HomePage signOut={signOut} user={user} />} />
       <Route path="/users" element={<AdminUsersPage signOut={signOut} user={user} />} />
-      <Route path="/profile" element={<ProfilePage signOut={signOut} user={user} />} />
       <Route path="/events/create" element={<EventCreatePage signOut={signOut} user={user} />} />
       <Route path="/events/:eventId" element={<EventPage signOut={signOut} user={user} />} />
       <Route path="*" element={<Navigate to="/admin" replace />} />

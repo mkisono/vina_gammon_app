@@ -22,9 +22,6 @@ vi.mock("./pages/HomePage", () => ({
 vi.mock("./pages/EventPage", () => ({
   EventPage: () => <div>AdminEventPage</div>,
 }));
-vi.mock("./pages/ProfilePage", () => ({
-  ProfilePage: () => <div>AdminProfilePage</div>,
-}));
 vi.mock("./pages/EventCreatePage", () => ({
   EventCreatePage: () => <div>AdminEventCreatePage</div>,
 }));

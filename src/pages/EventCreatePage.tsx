@@ -43,7 +43,6 @@ export function EventCreatePage({ signOut }: EventCreatePageProps) {
         onGoHome={() => navigate(adminBasePath)}
         onGoEventCreate={() => navigate(`${adminBasePath}/events/create`)}
         onGoUserManagement={() => navigate(`${adminBasePath}/users`)}
-        onGoProfile={() => navigate(`${adminBasePath}/profile`)}
         onSignOut={signOut}
       />
 

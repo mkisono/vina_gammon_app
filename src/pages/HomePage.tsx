@@ -1,7 +1,6 @@
 import { View } from "@aws-amplify/ui-react";
 import type { AuthUser } from "aws-amplify/auth";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 import { AppHeader } from "../components/layout/AppHeader";
 import { EventListSection } from "../components/events/EventListSection";
 import { LeaderboardSection } from "../components/results/LeaderboardSection";
@@ -9,7 +8,6 @@ import { getFiscalYearStartYear } from "../lib/leaderboard";
 import {
   useAuthUser,
   useCurrentUser,
-  useProfile,
   useEvents,
   useLeaderboard,
 } from "../hooks";
@@ -27,10 +25,6 @@ export function HomePage({ signOut }: HomePageProps) {
   const { userId, isLoading } = useCurrentUser();
   const isDataReady = !isLoading && Boolean(userId);
   const {
-    hasProfile,
-    isLoadingProfile,
-  } = useProfile(userId);
-  const {
     events,
     sortedEvents,
     eventIsTestById,
@@ -43,27 +37,6 @@ export function HomePage({ signOut }: HomePageProps) {
     eventIsTestById,
     enabled: isDataReady,
   });
-
-  const profileRequired = !hasProfile;
-  const canDecideProfile = !isLoading && !isLoadingProfile;
-
-  // 初回マウント時のみ、プロファイル初期設定が必須の場合プロファイルページへリダイレクト
-  useEffect(() => {
-    if (!canDecideProfile || !profileRequired) {
-      return;
-    }
-    navigate(`${adminBasePath}/profile`, { replace: true });
-  }, [canDecideProfile, profileRequired, navigate]);
-
-  // 読み込み完了前は判定を保留する。
-  if (!canDecideProfile) {
-    return null;
-  }
-
-  // プロファイル未完了時はコンポーネントを表示しない（リダイレクト処理中）
-  if (profileRequired) {
-    return null;
-  }
 
   const handleOpenEventPage = (eventId: string) => {
     navigate(`${adminBasePath}/events/${encodeURIComponent(eventId)}`);
@@ -80,7 +53,6 @@ export function HomePage({ signOut }: HomePageProps) {
         onGoHome={() => navigate(adminBasePath)}
         onGoEventCreate={() => navigate(`${adminBasePath}/events/create`)}
         onGoUserManagement={() => navigate(`${adminBasePath}/users`)}
-        onGoProfile={() => navigate(`${adminBasePath}/profile`)}
         onSignOut={signOut}
       />
 

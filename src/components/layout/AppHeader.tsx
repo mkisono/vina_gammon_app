@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 type AppHeaderProps = {
   isAdmin?: boolean;
   onGoHome: () => void;
-  onGoProfile: () => void;
   onGoEventCreate?: () => void;
   onGoUserManagement?: () => void;
   onSignOut?: () => void;
@@ -13,7 +12,6 @@ type AppHeaderProps = {
 export function AppHeader({
   isAdmin = false,
   onGoHome,
-  onGoProfile,
   onGoEventCreate,
   onGoUserManagement,
   onSignOut,
@@ -41,11 +39,6 @@ export function AppHeader({
       window.removeEventListener("keydown", onEscape);
     };
   }, []);
-
-  const handleGoProfile = () => {
-    setIsMenuOpen(false);
-    onGoProfile();
-  };
 
   const handleSignOut = () => {
     setIsMenuOpen(false);
@@ -112,9 +105,6 @@ export function AppHeader({
                 利用者管理
               </button>
             )}
-            <button type="button" className="appbar-menu-item" onClick={handleGoProfile}>
-              プロフィール編集
-            </button>
             <button type="button" className="appbar-menu-item" onClick={handleSignOut}>
               サインアウト
             </button>
